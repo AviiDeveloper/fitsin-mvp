@@ -4,6 +4,7 @@ import Foundation
 final class ManualEntriesViewModel: ObservableObject {
     @Published var entries: [ManualEntry] = []
     @Published var errorText: String?
+    @Published var deletingIds: Set<String> = []
     private var refreshTask: Task<Void, Never>?
 
     private var monthStartKey: String {
@@ -22,6 +23,19 @@ final class ManualEntriesViewModel: ObservableObject {
             errorText = nil
         } catch {
             errorText = "Could not load manual entries."
+        }
+    }
+
+    func deleteEntry(_ entry: ManualEntry) async {
+        deletingIds.insert(entry.id)
+        defer { deletingIds.remove(entry.id) }
+
+        do {
+            try await APIClient.shared.deleteManualEntry(id: entry.id)
+            entries.removeAll { $0.id == entry.id }
+            errorText = nil
+        } catch {
+            errorText = "Could not delete manual entry."
         }
     }
 

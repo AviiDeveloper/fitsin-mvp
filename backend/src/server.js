@@ -9,7 +9,7 @@ import { fetchUpcomingEvents } from './services/notion.js';
 import { buildInstallUrl, exchangeCodeForOfflineToken } from './services/shopifyOAuth.js';
 import { hasShopifyAccessToken } from './services/shopifyTokenStore.js';
 import { currentMonthKey, getMonthGoal, setMonthGoal } from './services/monthGoals.js';
-import { createManualEntry, listManualEntries } from './services/manualEntries.js';
+import { createManualEntry, deleteManualEntry, listManualEntries } from './services/manualEntries.js';
 import { TTLCache } from './utils/cache.js';
 
 const app = express();
@@ -173,6 +173,20 @@ app.post('/v1/manual-entries', async (req, res) => {
     return res.status(201).json(entry);
   } catch (error) {
     return res.status(400).json({ error: 'Failed to create manual entry', detail: error.message });
+  }
+});
+
+app.delete('/v1/manual-entries/:id', async (req, res) => {
+  try {
+    await deleteManualEntry(req.params.id);
+    cache.delete('today');
+    cache.delete('month');
+    return res.status(204).send();
+  } catch (error) {
+    if (error.message === 'Manual entry not found.') {
+      return res.status(404).json({ error: 'Failed to delete manual entry', detail: error.message });
+    }
+    return res.status(400).json({ error: 'Failed to delete manual entry', detail: error.message });
   }
 });
 

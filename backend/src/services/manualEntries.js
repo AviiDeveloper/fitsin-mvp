@@ -84,6 +84,20 @@ export async function listManualEntries({ from, to, limit = 200 } = {}, timezone
     .slice(0, Math.max(1, Math.min(Number(limit) || 200, 1000)));
 }
 
+export async function deleteManualEntry(entryId) {
+  const id = String(entryId || '').trim();
+  if (!id) throw new Error('Entry id is required.');
+
+  const entries = await readAll();
+  const next = entries.filter((entry) => entry.id !== id);
+
+  if (next.length === entries.length) {
+    throw new Error('Manual entry not found.');
+  }
+
+  await writeAll(next);
+}
+
 export async function dailyManualSalesMap(startDate, endDateExclusive, timezone) {
   const from = startDate.toFormat('yyyy-LL-dd');
   const to = endDateExclusive.minus({ days: 1 }).toFormat('yyyy-LL-dd');

@@ -229,7 +229,7 @@
 		3EB23F017F780C41496D2AAA /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				API_BASE_URL = "https://overgently-warless-jemma.ngrok-free.dev";
+				API_BASE_URL = "https://fitsin-mvp.onrender.com";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = FitsinMVP/Resources/Info.plist;
@@ -246,7 +246,7 @@
 		B42C15CB89B934A84E70DB5D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				API_BASE_URL = "https://overgently-warless-jemma.ngrok-free.dev";
+				API_BASE_URL = "https://fitsin-mvp.onrender.com";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = FitsinMVP/Resources/Info.plist;

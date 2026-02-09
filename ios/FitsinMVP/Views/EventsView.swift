@@ -10,68 +10,28 @@ struct EventsView: View {
                 DashboardBackground()
 
                 ScrollView {
-                    VStack(spacing: 10) {
+                    VStack(spacing: 18) {
+                        headerCard
 
-                        if vm.events.isEmpty {
-                            Text("No upcoming events")
-                                .font(.headline)
-                                .foregroundStyle(BrandTheme.inkSoft)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .vintageCard()
-                        }
-
-                        ForEach(Array(vm.events.enumerated()), id: \.element.id) { index, event in
-                            Link(destination: URL(string: event.url)!) {
-                                HStack(alignment: .top, spacing: 12) {
-                                    Image(systemName: "calendar.badge.clock")
-                                        .font(.title3.weight(.semibold))
-                                        .foregroundStyle(BrandTheme.accent)
-
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        Text(event.title.isEmpty ? "Untitled Event" : event.title)
-                                            .font(.headline)
-                                            .foregroundStyle(BrandTheme.ink)
-                                        if let date = event.date {
-                                            Text(date)
-                                                .font(.subheadline)
-                                                .foregroundStyle(BrandTheme.inkSoft)
-                                        }
-                                        if let type = event.type, !type.isEmpty {
-                                            Text(type.uppercased())
-                                                .font(.caption.weight(.bold))
-                                                .foregroundStyle(BrandTheme.accent)
-                                        }
-                                    }
-
-                                    Spacer()
-                                    Image(systemName: "arrow.up.right")
-                                        .font(.subheadline.weight(.bold))
-                                        .foregroundStyle(BrandTheme.inkSoft.opacity(0.75))
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .vintageCard()
-                                .opacity(animateIn ? 1 : 0)
-                                .offset(y: animateIn ? 0 : 10)
-                                .animation(.easeOut(duration: 0.35).delay(Double(index) * 0.04), value: animateIn)
+                        DashboardSection(title: "Upcoming", subtitle: "Tap any event to open details") {
+                            if vm.events.isEmpty {
+                                emptyState
+                            } else {
+                                eventsList
                             }
                         }
 
                         if let error = vm.errorText {
-                            Text(error)
-                                .font(.footnote)
-                                .foregroundStyle(BrandTheme.inkSoft)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                            InlineNotice(text: error, tone: BrandTheme.danger, systemImage: "wifi.exclamationmark")
                                 .vintageCard()
                         }
                     }
                     .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
+                    .padding(.vertical, 12)
                     .opacity(animateIn ? 1 : 0)
                     .offset(y: animateIn ? 0 : 10)
                 }
-                .refreshable {
-                    await vm.load()
-                }
+                .refreshable { await vm.load() }
             }
             .task {
                 await vm.load()
@@ -83,5 +43,106 @@ struct EventsView: View {
             .navigationTitle("Events")
             .toolbarColorScheme(.light, for: .navigationBar)
         }
+    }
+
+    private var headerCard: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Store Calendar")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(BrandTheme.inkSoft)
+                Text("\(vm.events.count)")
+                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                    .foregroundStyle(BrandTheme.ink)
+                Text("Upcoming items")
+                    .font(.subheadline)
+                    .foregroundStyle(BrandTheme.inkSoft)
+            }
+            Spacer()
+            StatusPill(text: vm.events.isEmpty ? "No Events" : "Active", tone: vm.events.isEmpty ? BrandTheme.inkSoft : BrandTheme.success)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .vintageCard()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(
+                    LinearGradient(
+                        colors: [BrandTheme.surfaceStrong, BrandTheme.surface],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+    }
+
+    private var emptyState: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("No upcoming events")
+                .font(.headline)
+                .foregroundStyle(BrandTheme.ink)
+            Text("You can keep Notion disconnected for now and add it later.")
+                .font(.subheadline)
+                .foregroundStyle(BrandTheme.inkSoft)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .vintageCard()
+    }
+
+    private var eventsList: some View {
+        VStack(spacing: 8) {
+            ForEach(Array(vm.events.enumerated()), id: \.element.id) { index, event in
+                Link(destination: URL(string: event.url)!) {
+                    HStack(alignment: .center, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(formattedDate(event.date))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(BrandTheme.inkSoft)
+                            Text(event.title.isEmpty ? "Untitled Event" : event.title)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(BrandTheme.ink)
+                                .lineLimit(2)
+                        }
+
+                        Spacer()
+
+                        if let type = event.type, !type.isEmpty {
+                            StatusPill(text: type.uppercased(), tone: BrandTheme.accent)
+                        }
+
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(BrandTheme.inkSoft)
+                    }
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(BrandTheme.surfaceStrong)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(BrandTheme.outline, lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+                .opacity(animateIn ? 1 : 0)
+                .offset(y: animateIn ? 0 : 10)
+                .animation(.easeOut(duration: 0.35).delay(Double(index) * 0.03), value: animateIn)
+            }
+        }
+        .vintageCard()
+    }
+
+    private func formattedDate(_ raw: String?) -> String {
+        guard let raw else { return "No date" }
+        let iso = ISO8601DateFormatter()
+        let day = DateFormatter()
+        day.dateFormat = "EEE d MMM"
+        day.timeZone = TimeZone(identifier: "Europe/London")
+        day.locale = Locale(identifier: "en_GB")
+
+        if let parsed = iso.date(from: raw) {
+            return day.string(from: parsed)
+        }
+        return raw
     }
 }

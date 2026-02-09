@@ -3,8 +3,9 @@ import SwiftUI
 struct RootTabView: View {
     init() {
         let appearance = UITabBarAppearance()
-        appearance.configureWithOpaqueBackground()
-        appearance.backgroundColor = UIColor(BrandTheme.surfaceStrong)
+        appearance.configureWithDefaultBackground()
+        appearance.backgroundColor = UIColor(BrandTheme.surfaceStrong).withAlphaComponent(0.96)
+        appearance.shadowColor = UIColor(BrandTheme.outline)
         appearance.stackedLayoutAppearance.selected.iconColor = UIColor(BrandTheme.ink)
         appearance.stackedLayoutAppearance.selected.titleTextAttributes = [.foregroundColor: UIColor(BrandTheme.ink)]
         appearance.stackedLayoutAppearance.normal.iconColor = UIColor(BrandTheme.inkSoft)

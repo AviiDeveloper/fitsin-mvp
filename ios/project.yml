@@ -21,9 +21,9 @@ targets:
       configs:
         Debug:
           base:
-            API_BASE_URL: https://overgently-warless-jemma.ngrok-free.dev
+            API_BASE_URL: https://fitsin-mvp.onrender.com
         Release:
           base:
-            API_BASE_URL: https://overgently-warless-jemma.ngrok-free.dev
+            API_BASE_URL: https://fitsin-mvp.onrender.com
     scheme:
       testTargets: []

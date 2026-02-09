@@ -1,18 +1,17 @@
 import SwiftUI
 
 enum BrandTheme {
-    static let paper = Color(red: 0.96, green: 0.96, blue: 0.95)
-    static let paperSoft = Color(red: 0.92, green: 0.92, blue: 0.90)
-    static let ink = Color(red: 0.10, green: 0.11, blue: 0.13)
-    static let inkSoft = Color(red: 0.39, green: 0.40, blue: 0.41)
-    static let accent = Color(red: 0.18, green: 0.42, blue: 0.57)
-    static let success = Color(red: 0.16, green: 0.48, blue: 0.33)
-    static let danger = Color(red: 0.74, green: 0.23, blue: 0.21)
-    static let surface = Color.white.opacity(0.86)
-    static let surfaceStrong = Color.white.opacity(0.95)
-    static let outline = Color.black.opacity(0.08)
-    static let topBar = Color.black
-    static let stripBg = Color(red: 0.84, green: 0.90, blue: 0.95)
+    static let paper = Color(red: 0.95, green: 0.95, blue: 0.94)
+    static let paperSoft = Color(red: 0.90, green: 0.90, blue: 0.88)
+    static let ink = Color(red: 0.09, green: 0.09, blue: 0.10)
+    static let inkSoft = Color(red: 0.39, green: 0.38, blue: 0.40)
+    static let accent = Color(red: 0.21, green: 0.37, blue: 0.52)
+    static let success = Color(red: 0.14, green: 0.49, blue: 0.31)
+    static let danger = Color(red: 0.74, green: 0.21, blue: 0.20)
+    static let surface = Color.white.opacity(0.84)
+    static let surfaceStrong = Color.white.opacity(0.96)
+    static let outline = Color.black.opacity(0.09)
+    static let divider = Color.black.opacity(0.08)
 }
 
 struct VintageCard: ViewModifier {
@@ -45,39 +44,145 @@ struct DashboardBackground: View {
             endPoint: .bottomTrailing
         )
         .overlay(
-            RadialGradient(
-                colors: [
-                    BrandTheme.accent.opacity(0.12),
-                    .clear
-                ],
-                center: .topTrailing,
-                startRadius: 20,
-                endRadius: 420
-            )
+            ZStack {
+                RadialGradient(
+                    colors: [
+                        BrandTheme.accent.opacity(0.09),
+                        .clear
+                    ],
+                    center: .topTrailing,
+                    startRadius: 20,
+                    endRadius: 420
+                )
+                RadialGradient(
+                    colors: [
+                        BrandTheme.ink.opacity(0.03),
+                        .clear
+                    ],
+                    center: .bottomLeading,
+                    startRadius: 20,
+                    endRadius: 360
+                )
+            }
+        )
+        .overlay(
+            Rectangle()
+                .stroke(
+                    LinearGradient(
+                        colors: [BrandTheme.divider.opacity(0.45), .clear, BrandTheme.divider.opacity(0.45)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.5
+                )
+                .blendMode(.overlay)
+                .padding(1)
         )
         .ignoresSafeArea()
     }
 }
 
-struct BrandHeaderStrip: View {
-    var body: some View {
-        VStack(spacing: 0) {
-            Text("BUY • SELL • TRADE")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(Color.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .background(BrandTheme.topBar)
+struct StatusPill: View {
+    let text: String
+    let tone: Color
 
-            Text("CURATED VINTAGE & ARCHIVE STREETWEAR — ONE OF ONE PIECES — NO RESTOCKS")
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(BrandTheme.ink)
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(BrandTheme.stripBg)
+    var body: some View {
+        Text(text)
+            .font(.caption.weight(.bold))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                Capsule()
+                    .fill(tone.opacity(0.14))
+            )
+            .foregroundStyle(tone)
+    }
+}
+
+struct DashboardSection<Content: View>: View {
+    let title: String
+    let subtitle: String?
+    @ViewBuilder let content: Content
+
+    init(title: String, subtitle: String? = nil, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.subtitle = subtitle
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .sectionHeaderStyle()
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(BrandTheme.inkSoft)
+                }
+            }
+            content
         }
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct StatTile: View {
+    let title: String
+    let value: String
+    let tone: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(BrandTheme.inkSoft)
+            Text(value)
+                .font(.title3.weight(.bold))
+                .foregroundStyle(tone)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(BrandTheme.surfaceStrong)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(BrandTheme.outline, lineWidth: 1)
+        )
+    }
+}
+
+struct InlineNotice: View {
+    let text: String
+    let tone: Color
+    let systemImage: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: systemImage)
+                .foregroundStyle(tone)
+                .font(.subheadline.weight(.semibold))
+            Text(text)
+                .font(.footnote)
+                .foregroundStyle(BrandTheme.inkSoft)
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(tone.opacity(0.08))
+        )
+    }
+}
+
+extension View {
+    func sectionHeaderStyle() -> some View {
+        self
+            .font(.headline.weight(.semibold))
+            .foregroundStyle(BrandTheme.ink)
     }
 }

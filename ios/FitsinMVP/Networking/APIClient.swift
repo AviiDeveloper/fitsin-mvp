@@ -55,6 +55,13 @@ final class APIClient {
             throw APIError.server("HTTP \(http.statusCode)")
         }
 
+        if data.isEmpty {
+            if T.self == EmptyResponse.self {
+                return EmptyResponse() as! T
+            }
+            throw APIError.decoding
+        }
+
         do {
             return try JSONDecoder().decode(T.self, from: data)
         } catch {
@@ -96,8 +103,8 @@ final class APIClient {
         let payload: [String: Any] = [
             "amount": amount,
             "source": source.rawValue,
-            "description": (description?.isEmpty == false ? description : NSNull()),
-            "note": (note?.isEmpty == false ? note : NSNull())
+            "description": (description?.isEmpty == false ? description as Any : NSNull()),
+            "note": (note?.isEmpty == false ? note as Any : NSNull())
         ]
         let body = try JSONSerialization.data(withJSONObject: payload, options: [])
         return try await fetch(ManualEntry.self, path: "/v1/manual-entries", method: "POST", body: body)
@@ -111,4 +118,11 @@ final class APIClient {
         let query = parts.joined(separator: "&")
         return try await fetch(ManualEntriesResponse.self, path: "/v1/manual-entries?\(query)")
     }
+
+    func deleteManualEntry(id: String) async throws {
+        let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
+        _ = try await fetch(EmptyResponse.self, path: "/v1/manual-entries/\(encoded)", method: "DELETE")
+    }
 }
+
+private struct EmptyResponse: Decodable {}
