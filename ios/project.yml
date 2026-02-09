@@ -1,0 +1,29 @@
+name: FitsinMVP
+options:
+  deploymentTarget:
+    iOS: "17.0"
+settings:
+  base:
+    PRODUCT_BUNDLE_IDENTIFIER: com.fitsin.mvp
+    SWIFT_VERSION: 5.0
+targets:
+  FitsinMVP:
+    type: application
+    platform: iOS
+    sources:
+      - FitsinMVP
+    resources:
+      - FitsinMVP/Resources
+    settings:
+      base:
+        INFOPLIST_FILE: FitsinMVP/Resources/Info.plist
+        PRODUCT_NAME: FitsinMVP
+      configs:
+        Debug:
+          base:
+            API_BASE_URL: https://overgently-warless-jemma.ngrok-free.dev
+        Release:
+          base:
+            API_BASE_URL: https://overgently-warless-jemma.ngrok-free.dev
+    scheme:
+      testTargets: []

@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: fitsin-backend
+    runtime: docker
+    rootDir: backend
+    plan: starter
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TZ
+        value: Europe/London
+      - key: PORT
+        value: 3000
+      - key: APP_SHARED_CODE
+        sync: false
+      - key: SHOPIFY_STORE_DOMAIN
+        sync: false
+      - key: SHOPIFY_ADMIN_TOKEN
+        sync: false
+      - key: SHOPIFY_NET_SALES_MODE
+        value: subtotal_ex_tax_ship
+      - key: SHOPIFY_HISTORY_MONTHS
+        value: 12
+      - key: NOTION_TOKEN
+        sync: false
+      - key: NOTION_DB_ID
+        sync: false
+      - key: NOTION_TITLE_PROPERTY
+        value: Name
+      - key: NOTION_DATE_PROPERTY
+        value: Date
+      - key: NOTION_TYPE_PROPERTY
+        value: Type
+      - key: CACHE_TTL_SECONDS
+        value: 60
+      - key: STALE_CACHE_MAX_AGE_SECONDS
+        value: 3600
