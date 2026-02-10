@@ -43,8 +43,15 @@ struct EventItem: Codable, Identifiable {
     let event: String?
     let place: String?
     let tags: [String]?
+    let assignees: [NotionPerson]?
     let note: String?
     let url: String
+}
+
+struct NotionPerson: Codable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let avatar_url: String?
 }
 
 struct EventsResponse: Codable {
@@ -56,6 +63,14 @@ struct EventsResponse: Codable {
 
 struct EventDetailResponse: Codable {
     let event: EventItem
+    let updated_at: String
+}
+
+struct EventMetaResponse: Codable {
+    let people: [NotionPerson]
+    let type_options: [String]
+    let event_property_type: String?
+    let type_property_type: String?
     let updated_at: String
 }
 

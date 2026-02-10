@@ -53,6 +53,15 @@ function extractText(prop) {
   }
 }
 
+function extractPeople(prop) {
+  if (!prop || prop.type !== 'people') return [];
+  return (prop.people || []).map((p) => ({
+    id: p.id,
+    name: p.name || 'Unknown',
+    avatar_url: p.avatar_url || null
+  }));
+}
+
 function extractTags(prop) {
   if (!prop) return [];
   if (prop.type === 'multi_select') return prop.multi_select?.map((x) => x.name).filter(Boolean) || [];
@@ -74,25 +83,9 @@ function normalizeTagInput(input) {
     .filter(Boolean);
 }
 
-function buildEventSummary(item) {
-  const props = item.properties || {};
-  const eventProp = props[config.notion.eventProperty];
-  const placeProp = props[config.notion.placeProperty];
-  const tagsProp = props[config.notion.tagsProperty];
-  const typeProp = props[config.notion.typeProperty];
-
-  const eventValue = extractText(eventProp);
-  return {
-    id: item.id,
-    title: extractText(props[config.notion.titleProperty]) || '',
-    date: props[config.notion.dateProperty]?.date?.start || null,
-    type: extractText(typeProp) || eventValue,
-    event: eventValue,
-    place: extractText(placeProp),
-    tags: extractTags(tagsProp),
-    note: extractText(props[config.notion.notesProperty]),
-    url: item.url
-  };
+function normalizeIds(input) {
+  if (!Array.isArray(input)) return [];
+  return input.map((x) => String(x).trim()).filter(Boolean);
 }
 
 function buildTextPropertyPatch(prop, value, label) {
@@ -142,6 +135,107 @@ function buildDatePropertyPatch(prop, value, label) {
   const cleaned = String(value || '').trim();
   return {
     date: cleaned ? { start: cleaned } : null
+  };
+}
+
+function buildPeoplePatch(prop, ids, label) {
+  if (prop.type !== 'people') {
+    throw new Error(`${label} property must be a People field in Notion (current type: ${prop.type}).`);
+  }
+  const userIds = normalizeIds(ids);
+  return {
+    people: userIds.map((id) => ({ id }))
+  };
+}
+
+function buildEventSummary(item) {
+  const props = item.properties || {};
+  const eventProp = props[config.notion.eventProperty];
+  const placeProp = props[config.notion.placeProperty];
+  const tagsProp = props[config.notion.tagsProperty];
+  const typeProp = props[config.notion.typeProperty];
+
+  return {
+    id: item.id,
+    title: extractText(props[config.notion.titleProperty]) || '',
+    date: props[config.notion.dateProperty]?.date?.start || null,
+    type: extractText(typeProp),
+    event: extractText(eventProp),
+    place: extractText(placeProp),
+    tags: extractTags(tagsProp),
+    assignees: extractPeople(eventProp),
+    note: extractText(props[config.notion.notesProperty]),
+    url: item.url
+  };
+}
+
+async function fetchDatabaseDefinition() {
+  if (!config.notion.token || !config.notion.dbId) {
+    throw new Error('Notion database is not configured.');
+  }
+
+  return notionRequest(`https://api.notion.com/v1/databases/${encodeURIComponent(config.notion.dbId)}`, {
+    method: 'GET',
+    headers: notionHeaders()
+  });
+}
+
+async function listWorkspaceUsers() {
+  const users = [];
+  let cursor;
+
+  do {
+    const query = cursor ? `?start_cursor=${encodeURIComponent(cursor)}&page_size=100` : '?page_size=100';
+    const data = await notionRequest(`https://api.notion.com/v1/users${query}`, {
+      method: 'GET',
+      headers: notionHeaders()
+    });
+
+    for (const u of data.results || []) {
+      if (u.object !== 'user') continue;
+      users.push({
+        id: u.id,
+        name: u.name || 'Unknown',
+        avatar_url: u.avatar_url || null
+      });
+    }
+
+    cursor = data.has_more ? data.next_cursor : null;
+  } while (cursor);
+
+  return users;
+}
+
+export async function fetchEventsMeta() {
+  if (!config.notion.token || !config.notion.dbId) {
+    return {
+      people: [],
+      type_options: ['Photoshoot', 'Event', 'Meeting'],
+      event_property_type: null,
+      type_property_type: null
+    };
+  }
+
+  const [database, users] = await Promise.all([fetchDatabaseDefinition(), listWorkspaceUsers()]);
+
+  const eventProp = database.properties?.[config.notion.eventProperty];
+  const typeProp = database.properties?.[config.notion.typeProperty];
+
+  let typeOptions = ['Photoshoot', 'Event', 'Meeting'];
+  if (typeProp?.type === 'select') {
+    const opts = typeProp.select?.options?.map((o) => o.name).filter(Boolean) || [];
+    typeOptions = Array.from(new Set([...typeOptions, ...opts]));
+  }
+  if (typeProp?.type === 'multi_select') {
+    const opts = typeProp.multi_select?.options?.map((o) => o.name).filter(Boolean) || [];
+    typeOptions = Array.from(new Set([...typeOptions, ...opts]));
+  }
+
+  return {
+    people: users,
+    type_options: typeOptions,
+    event_property_type: eventProp?.type || null,
+    type_property_type: typeProp?.type || null
   };
 }
 
@@ -221,12 +315,26 @@ export async function updateEvent(eventId, updates) {
     patch[propertyName] = buildDatePropertyPatch(prop, value, label);
   }
 
+  function setPeopleIfProvided(propertyName, label, ids) {
+    if (ids === undefined) return;
+    const prop = props[propertyName];
+    if (!prop) throw new Error(`${label} property "${propertyName}" not found in Notion database.`);
+    patch[propertyName] = buildPeoplePatch(prop, ids, label);
+  }
+
   setTextIfProvided(config.notion.titleProperty, 'Title', updates.title);
   setDateIfProvided(config.notion.dateProperty, 'Date', updates.date);
-  setTextIfProvided(config.notion.eventProperty, 'Event', updates.event);
   setTextIfProvided(config.notion.placeProperty, 'Place', updates.place);
   setTagsIfProvided(config.notion.tagsProperty, 'Tags', updates.tags);
   setTextIfProvided(config.notion.notesProperty, 'Notes', updates.note);
+  setTextIfProvided(config.notion.typeProperty, 'Type', updates.type);
+
+  const eventProp = props[config.notion.eventProperty];
+  if (eventProp?.type === 'people') {
+    setPeopleIfProvided(config.notion.eventProperty, 'Event', updates.assignees);
+  } else {
+    setTextIfProvided(config.notion.eventProperty, 'Event', updates.event);
+  }
 
   if (Object.keys(patch).length === 0) {
     throw new Error('No editable fields provided.');

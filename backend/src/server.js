@@ -5,7 +5,7 @@ import morgan from 'morgan';
 import { config } from './config.js';
 import { requireAppCode } from './middleware/auth.js';
 import { computeMonthMetrics, computeTodayMetrics } from './services/metrics.js';
-import { fetchEventById, fetchUpcomingEvents, updateEvent } from './services/notion.js';
+import { fetchEventById, fetchEventsMeta, fetchUpcomingEvents, updateEvent } from './services/notion.js';
 import { buildInstallUrl, exchangeCodeForOfflineToken } from './services/shopifyOAuth.js';
 import { hasShopifyAccessToken } from './services/shopifyTokenStore.js';
 import { currentMonthKey, getMonthGoal, setMonthGoal } from './services/monthGoals.js';
@@ -124,6 +124,18 @@ app.get('/v1/events', async (_req, res) => {
   }
 });
 
+app.get('/v1/events/meta', async (_req, res) => {
+  try {
+    const meta = await fetchEventsMeta();
+    return res.json({
+      ...meta,
+      updated_at: new Date().toISOString()
+    });
+  } catch (error) {
+    return res.status(502).json({ error: 'Failed to load event metadata', detail: error.message });
+  }
+});
+
 app.get('/v1/events/:id', async (req, res) => {
   try {
     const event = await fetchEventById(req.params.id);
@@ -142,8 +154,10 @@ app.patch('/v1/events/:id', async (req, res) => {
       title: req.body?.title,
       date: req.body?.date,
       event: req.body?.event,
+      type: req.body?.type,
       place: req.body?.place,
       tags: req.body?.tags,
+      assignees: req.body?.assignees,
       note: req.body?.note
     };
     const event = await updateEvent(req.params.id, updates);
