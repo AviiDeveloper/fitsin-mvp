@@ -9,6 +9,15 @@ enum APIError: Error {
     case server(String)
 }
 
+struct EventUpdatePayload {
+    let title: String
+    let date: String
+    let event: String
+    let place: String
+    let tags: [String]
+    let note: String
+}
+
 final class APIClient {
     static let shared = APIClient()
 
@@ -86,10 +95,17 @@ final class APIClient {
         return try await fetch(EventDetailResponse.self, path: "/v1/events/\(encoded)")
     }
 
-    func updateEventNote(id: String, note: String) async throws -> EventDetailResponse {
+    func updateEvent(id: String, payload: EventUpdatePayload) async throws -> EventDetailResponse {
         let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
-        let payload: [String: Any] = ["note": note]
-        let body = try JSONSerialization.data(withJSONObject: payload, options: [])
+        let bodyPayload: [String: Any] = [
+            "title": payload.title,
+            "date": payload.date,
+            "event": payload.event,
+            "place": payload.place,
+            "tags": payload.tags,
+            "note": payload.note
+        ]
+        let body = try JSONSerialization.data(withJSONObject: bodyPayload, options: [])
         return try await fetch(EventDetailResponse.self, path: "/v1/events/\(encoded)", method: "PATCH", body: body)
     }
 

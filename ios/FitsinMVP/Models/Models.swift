@@ -40,6 +40,9 @@ struct EventItem: Codable, Identifiable {
     let title: String
     let date: String?
     let type: String?
+    let event: String?
+    let place: String?
+    let tags: [String]?
     let note: String?
     let url: String
 }

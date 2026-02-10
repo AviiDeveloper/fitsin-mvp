@@ -5,7 +5,7 @@ import morgan from 'morgan';
 import { config } from './config.js';
 import { requireAppCode } from './middleware/auth.js';
 import { computeMonthMetrics, computeTodayMetrics } from './services/metrics.js';
-import { fetchEventById, fetchUpcomingEvents, updateEventNote } from './services/notion.js';
+import { fetchEventById, fetchUpcomingEvents, updateEvent } from './services/notion.js';
 import { buildInstallUrl, exchangeCodeForOfflineToken } from './services/shopifyOAuth.js';
 import { hasShopifyAccessToken } from './services/shopifyTokenStore.js';
 import { currentMonthKey, getMonthGoal, setMonthGoal } from './services/monthGoals.js';
@@ -138,8 +138,15 @@ app.get('/v1/events/:id', async (req, res) => {
 
 app.patch('/v1/events/:id', async (req, res) => {
   try {
-    const note = req.body?.note ?? '';
-    const event = await updateEventNote(req.params.id, note);
+    const updates = {
+      title: req.body?.title,
+      date: req.body?.date,
+      event: req.body?.event,
+      place: req.body?.place,
+      tags: req.body?.tags,
+      note: req.body?.note
+    };
+    const event = await updateEvent(req.params.id, updates);
     cache.delete('events');
     return res.json({
       event,

@@ -17,28 +17,29 @@ struct EventDetailView: View {
             ScrollView {
                 VStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(event.title.isEmpty ? "Untitled Event" : event.title)
+                        Text("Event Details")
                             .font(.title3.weight(.bold))
                             .foregroundStyle(BrandTheme.ink)
 
-                        HStack(spacing: 8) {
-                            Text(formattedDate(event.date))
-                                .font(.subheadline)
-                                .foregroundStyle(BrandTheme.inkSoft)
-                            if let type = event.type, !type.isEmpty {
-                                StatusPill(text: type.uppercased(), tone: BrandTheme.accent)
-                            }
-                        }
+                        Text("Edits here sync to Notion for everyone.")
+                            .font(.subheadline)
+                            .foregroundStyle(BrandTheme.inkSoft)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .vintageCard()
 
+                    VStack(spacing: 10) {
+                        FormField(label: "Title", text: $vm.titleDraft, placeholder: "FASHION SHOW")
+                        FormField(label: "Date", text: $vm.dateDraft, placeholder: "2026-02-21 or 2026-02-21T15:00:00+00:00")
+                        FormField(label: "Event", text: $vm.eventDraft, placeholder: "Show, Drop, Pop-up")
+                        FormField(label: "Place", text: $vm.placeDraft, placeholder: "Manchester")
+                        FormField(label: "Tags", text: $vm.tagsDraft, placeholder: "runway, collab, press")
+                    }
+                    .vintageCard()
+
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Team Note")
+                        Text("Notes")
                             .sectionHeaderStyle()
-                        Text("Editable in-app and synced to Notion for all users.")
-                            .font(.subheadline)
-                            .foregroundStyle(BrandTheme.inkSoft)
 
                         TextEditor(text: $vm.noteDraft)
                             .frame(minHeight: 140)
@@ -51,27 +52,28 @@ struct EventDetailView: View {
                                 RoundedRectangle(cornerRadius: 12)
                                     .stroke(BrandTheme.outline, lineWidth: 1)
                             )
-
-                        Button {
-                            Task { await vm.saveNote(eventId: eventId) }
-                        } label: {
-                            HStack {
-                                if vm.isSaving {
-                                    ProgressView().tint(.white)
-                                }
-                                Text(vm.isSaving ? "Saving..." : "Save Note")
-                                    .font(.subheadline.weight(.semibold))
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 11)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(BrandTheme.ink)
-                            )
-                            .foregroundStyle(.white)
-                        }
-                        .disabled(vm.isSaving)
                     }
+                    .vintageCard()
+
+                    Button {
+                        Task { await vm.saveEvent(eventId: eventId) }
+                    } label: {
+                        HStack {
+                            if vm.isSaving {
+                                ProgressView().tint(.white)
+                            }
+                            Text(vm.isSaving ? "Saving..." : "Save Changes")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(BrandTheme.ink)
+                        )
+                        .foregroundStyle(.white)
+                    }
+                    .disabled(vm.isSaving)
                     .vintageCard()
 
                     Link(destination: URL(string: event.url)!) {
@@ -100,22 +102,36 @@ struct EventDetailView: View {
                 .padding(.vertical, 12)
             }
         }
-        .navigationTitle("Event")
+        .navigationTitle(event.title.isEmpty ? "Event" : event.title)
         .task { await vm.load(eventId: eventId) }
         .refreshable { await vm.load(eventId: eventId) }
     }
+}
 
-    private func formattedDate(_ raw: String?) -> String {
-        guard let raw else { return "No date" }
-        let iso = ISO8601DateFormatter()
-        let day = DateFormatter()
-        day.dateFormat = "EEE d MMM, HH:mm"
-        day.timeZone = TimeZone(identifier: "Europe/London")
-        day.locale = Locale(identifier: "en_GB")
+private struct FormField: View {
+    let label: String
+    @Binding var text: String
+    let placeholder: String
 
-        if let parsed = iso.date(from: raw) {
-            return day.string(from: parsed)
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(BrandTheme.inkSoft)
+            TextField(placeholder, text: $text)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(BrandTheme.surfaceStrong)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(BrandTheme.outline, lineWidth: 1)
+                )
         }
-        return raw
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

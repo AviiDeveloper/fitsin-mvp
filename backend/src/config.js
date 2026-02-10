@@ -46,6 +46,9 @@ export const config = {
     dbId: process.env.NOTION_DB_ID || '',
     titleProperty: process.env.NOTION_TITLE_PROPERTY || 'Name',
     dateProperty: process.env.NOTION_DATE_PROPERTY || 'Date',
+    eventProperty: process.env.NOTION_EVENT_PROPERTY || 'Event',
+    placeProperty: process.env.NOTION_PLACE_PROPERTY || 'Place',
+    tagsProperty: process.env.NOTION_TAGS_PROPERTY || 'Tags',
     typeProperty: process.env.NOTION_TYPE_PROPERTY || 'Type',
     notesProperty: process.env.NOTION_NOTES_PROPERTY || 'Notes'
   },

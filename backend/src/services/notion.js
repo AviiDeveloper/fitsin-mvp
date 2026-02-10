@@ -22,45 +22,126 @@ async function notionRequest(url, options) {
   return res.json();
 }
 
-function extractTitle(prop) {
-  if (!prop) return '';
-  if (prop.type === 'title') {
-    return prop.title.map((t) => t.plain_text).join('');
-  }
-  if (prop.type === 'rich_text') {
-    return prop.rich_text.map((t) => t.plain_text).join('');
-  }
-  return '';
+function toRichTextValue(text) {
+  const cleaned = String(text || '').trim();
+  return cleaned ? [{ type: 'text', text: { content: cleaned } }] : [];
 }
 
-function extractType(prop) {
+function extractText(prop) {
   if (!prop) return null;
-  if (prop.type === 'select') return prop.select?.name || null;
-  if (prop.type === 'multi_select') return prop.multi_select?.map((x) => x.name).join(', ') || null;
-  if (prop.type === 'rich_text') return prop.rich_text?.map((x) => x.plain_text).join('') || null;
-  return null;
+  switch (prop.type) {
+    case 'title':
+      return prop.title.map((t) => t.plain_text).join('');
+    case 'rich_text':
+      return prop.rich_text.map((t) => t.plain_text).join('');
+    case 'select':
+      return prop.select?.name || null;
+    case 'multi_select':
+      return prop.multi_select?.map((t) => t.name).join(', ') || null;
+    case 'number':
+      return prop.number == null ? null : String(prop.number);
+    case 'url':
+      return prop.url || null;
+    case 'email':
+      return prop.email || null;
+    case 'phone_number':
+      return prop.phone_number || null;
+    case 'people':
+      return prop.people?.map((p) => p.name).filter(Boolean).join(', ') || null;
+    default:
+      return null;
+  }
 }
 
-function extractRichText(prop) {
-  if (!prop) return null;
-  if (prop.type === 'rich_text') {
-    return prop.rich_text?.map((x) => x.plain_text).join('') || '';
+function extractTags(prop) {
+  if (!prop) return [];
+  if (prop.type === 'multi_select') return prop.multi_select?.map((x) => x.name).filter(Boolean) || [];
+  if (prop.type === 'select') return prop.select?.name ? [prop.select.name] : [];
+  const text = extractText(prop) || '';
+  return text
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+function normalizeTagInput(input) {
+  if (Array.isArray(input)) {
+    return input.map((x) => String(x).trim()).filter(Boolean);
   }
-  if (prop.type === 'title') {
-    return prop.title?.map((x) => x.plain_text).join('') || '';
-  }
-  return null;
+  return String(input || '')
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
 }
 
 function buildEventSummary(item) {
   const props = item.properties || {};
+  const eventProp = props[config.notion.eventProperty];
+  const placeProp = props[config.notion.placeProperty];
+  const tagsProp = props[config.notion.tagsProperty];
+  const typeProp = props[config.notion.typeProperty];
+
+  const eventValue = extractText(eventProp);
   return {
     id: item.id,
-    title: extractTitle(props[config.notion.titleProperty]),
+    title: extractText(props[config.notion.titleProperty]) || '',
     date: props[config.notion.dateProperty]?.date?.start || null,
-    type: extractType(props[config.notion.typeProperty]),
-    note: extractRichText(props[config.notion.notesProperty]),
+    type: extractText(typeProp) || eventValue,
+    event: eventValue,
+    place: extractText(placeProp),
+    tags: extractTags(tagsProp),
+    note: extractText(props[config.notion.notesProperty]),
     url: item.url
+  };
+}
+
+function buildTextPropertyPatch(prop, value, label) {
+  const cleaned = String(value || '').trim();
+  if (prop.type === 'title') {
+    return { title: toRichTextValue(cleaned) };
+  }
+  if (prop.type === 'rich_text') {
+    return { rich_text: toRichTextValue(cleaned) };
+  }
+  if (prop.type === 'select') {
+    return { select: cleaned ? { name: cleaned } : null };
+  }
+  if (prop.type === 'multi_select') {
+    const values = normalizeTagInput(cleaned);
+    return { multi_select: values.map((name) => ({ name })) };
+  }
+  throw new Error(
+    `${label} property is unsupported for app edits (type: ${prop.type}). Use rich_text, title, select, or multi_select.`
+  );
+}
+
+function buildTagsPropertyPatch(prop, value, label) {
+  const tags = normalizeTagInput(value);
+  if (prop.type === 'multi_select') {
+    return { multi_select: tags.map((name) => ({ name })) };
+  }
+  if (prop.type === 'select') {
+    return { select: tags[0] ? { name: tags[0] } : null };
+  }
+  if (prop.type === 'rich_text') {
+    return { rich_text: toRichTextValue(tags.join(', ')) };
+  }
+  if (prop.type === 'title') {
+    return { title: toRichTextValue(tags.join(', ')) };
+  }
+  throw new Error(
+    `${label} property is unsupported for app edits (type: ${prop.type}). Use multi_select, select, rich_text, or title.`
+  );
+}
+
+function buildDatePropertyPatch(prop, value, label) {
+  if (prop.type !== 'date') {
+    throw new Error(`${label} property must be a date in Notion (current type: ${prop.type}).`);
+  }
+
+  const cleaned = String(value || '').trim();
+  return {
+    date: cleaned ? { start: cleaned } : null
   };
 }
 
@@ -89,6 +170,7 @@ export async function fetchUpcomingEvents(timezone) {
     headers: notionHeaders(),
     body: JSON.stringify(body)
   });
+
   return data.results.map(buildEventSummary);
 }
 
@@ -105,7 +187,7 @@ export async function fetchEventById(eventId) {
   return buildEventSummary(data);
 }
 
-export async function updateEventNote(eventId, note) {
+export async function updateEvent(eventId, updates) {
   if (!config.notion.token) throw new Error('Notion token is not configured.');
   const id = String(eventId || '').trim();
   if (!id) throw new Error('Event id is required.');
@@ -116,39 +198,44 @@ export async function updateEventNote(eventId, note) {
   });
 
   const props = page.properties || {};
-  const notesProp = props[config.notion.notesProperty];
-  if (!notesProp) {
-    throw new Error(`Notes property "${config.notion.notesProperty}" not found in Notion database.`);
+  const patch = {};
+
+  function setTextIfProvided(propertyName, label, value) {
+    if (value === undefined) return;
+    const prop = props[propertyName];
+    if (!prop) throw new Error(`${label} property "${propertyName}" not found in Notion database.`);
+    patch[propertyName] = buildTextPropertyPatch(prop, value, label);
   }
 
-  const text = String(note || '').trim();
-  let patchProp;
-  if (notesProp.type === 'rich_text') {
-    patchProp = {
-      rich_text: text
-        ? [{ type: 'text', text: { content: text } }]
-        : []
-    };
-  } else if (notesProp.type === 'title') {
-    patchProp = {
-      title: text
-        ? [{ type: 'text', text: { content: text } }]
-        : []
-    };
-  } else {
-    throw new Error(
-      `Notes property "${config.notion.notesProperty}" must be rich_text or title, got ${notesProp.type}.`
-    );
+  function setTagsIfProvided(propertyName, label, value) {
+    if (value === undefined) return;
+    const prop = props[propertyName];
+    if (!prop) throw new Error(`${label} property "${propertyName}" not found in Notion database.`);
+    patch[propertyName] = buildTagsPropertyPatch(prop, value, label);
+  }
+
+  function setDateIfProvided(propertyName, label, value) {
+    if (value === undefined) return;
+    const prop = props[propertyName];
+    if (!prop) throw new Error(`${label} property "${propertyName}" not found in Notion database.`);
+    patch[propertyName] = buildDatePropertyPatch(prop, value, label);
+  }
+
+  setTextIfProvided(config.notion.titleProperty, 'Title', updates.title);
+  setDateIfProvided(config.notion.dateProperty, 'Date', updates.date);
+  setTextIfProvided(config.notion.eventProperty, 'Event', updates.event);
+  setTextIfProvided(config.notion.placeProperty, 'Place', updates.place);
+  setTagsIfProvided(config.notion.tagsProperty, 'Tags', updates.tags);
+  setTextIfProvided(config.notion.notesProperty, 'Notes', updates.note);
+
+  if (Object.keys(patch).length === 0) {
+    throw new Error('No editable fields provided.');
   }
 
   await notionRequest(`https://api.notion.com/v1/pages/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers: notionHeaders(),
-    body: JSON.stringify({
-      properties: {
-        [config.notion.notesProperty]: patchProp
-      }
-    })
+    body: JSON.stringify({ properties: patch })
   });
 
   return fetchEventById(id);
