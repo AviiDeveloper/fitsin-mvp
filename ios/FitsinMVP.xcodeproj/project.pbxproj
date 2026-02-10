@@ -15,6 +15,8 @@
 		684852ADB0C84EDB539D56CF /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAB024763AC552F3652A8B5B /* RootTabView.swift */; };
 		72A45EA180C96CD2C51193DC /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9472A5284069053C7CFBFA1 /* APIClient.swift */; };
 		7D73A567DD8B425F56005AC5 /* MonthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B1B7B509345388ACDACADA3 /* MonthView.swift */; };
+		8E2E2464D78706E2F866D817 /* EventDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949EEB13DA1B5F5D50A32868 /* EventDetailView.swift */; };
+		9153C4315D830B490268E39B /* EventDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC63A35190D2FFE646021834 /* EventDetailViewModel.swift */; };
 		9EDC5BFD61465E5258262A04 /* AccessCodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 310192D580868CFBA32D1EA4 /* AccessCodeView.swift */; };
 		9F6A6F55CEA701761C3FAA54 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A787B438005D164BE2C446FB /* KeychainStore.swift */; };
 		A02610D062A695084CA450B5 /* TodayViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C6DA6039C885ADA5E58C34F /* TodayViewModel.swift */; };
@@ -41,9 +43,11 @@
 		67C9AA09A887DD3124955962 /* LocalCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalCache.swift; sourceTree = "<group>"; };
 		72C71292C9025697C4973A1A /* MonthViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthViewModel.swift; sourceTree = "<group>"; };
 		73D2AE412851CCD00E3B1C30 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		949EEB13DA1B5F5D50A32868 /* EventDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventDetailView.swift; sourceTree = "<group>"; };
 		A787B438005D164BE2C446FB /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		ACD26053C9635CFB571D6C2C /* ManualEntriesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualEntriesViewModel.swift; sourceTree = "<group>"; };
 		B7CEFD5752BDE67AA865C879 /* EventsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventsViewModel.swift; sourceTree = "<group>"; };
+		BC63A35190D2FFE646021834 /* EventDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventDetailViewModel.swift; sourceTree = "<group>"; };
 		C4313BC42CB815FB235862B1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		CAB024763AC552F3652A8B5B /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
 		D2576245EFC0EDFAD179BF0F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -68,6 +72,7 @@
 			children = (
 				5EA54E30CE95E77C183517AD /* AppSession.swift */,
 				1999F02FFEAF0CD739D737BD /* DaySalesViewModel.swift */,
+				BC63A35190D2FFE646021834 /* EventDetailViewModel.swift */,
 				B7CEFD5752BDE67AA865C879 /* EventsViewModel.swift */,
 				ACD26053C9635CFB571D6C2C /* ManualEntriesViewModel.swift */,
 				72C71292C9025697C4973A1A /* MonthViewModel.swift */,
@@ -137,6 +142,7 @@
 				310192D580868CFBA32D1EA4 /* AccessCodeView.swift */,
 				20EDD679368504B378C91328 /* BrandTheme.swift */,
 				EB57C26345043D4109607A31 /* DaySalesView.swift */,
+				949EEB13DA1B5F5D50A32868 /* EventDetailView.swift */,
 				E5BDD48CB210F29F2059855A /* EventsView.swift */,
 				E44768E4F1BFA83F8F0E1155 /* ManualEntriesView.swift */,
 				2B1B7B509345388ACDACADA3 /* MonthView.swift */,
@@ -214,6 +220,8 @@
 				29082102D4E1B3CBD318B8DF /* BrandTheme.swift in Sources */,
 				A82A9B9584721AB4DBC2ED0F /* DaySalesView.swift in Sources */,
 				ABB87B6891946BE5F81D7416 /* DaySalesViewModel.swift in Sources */,
+				8E2E2464D78706E2F866D817 /* EventDetailView.swift in Sources */,
+				9153C4315D830B490268E39B /* EventDetailViewModel.swift in Sources */,
 				B5455C0585FCD0FD4DAB880E /* EventsView.swift in Sources */,
 				21CD2E400AB20A3C434BA29F /* EventsViewModel.swift in Sources */,
 				B3A22D1506DFA4E4379CF8B3 /* FitsinMVPApp.swift in Sources */,

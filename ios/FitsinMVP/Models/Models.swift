@@ -40,6 +40,7 @@ struct EventItem: Codable, Identifiable {
     let title: String
     let date: String?
     let type: String?
+    let note: String?
     let url: String
 }
 
@@ -48,6 +49,11 @@ struct EventsResponse: Codable {
     let updated_at: String
     let data_delayed: Bool?
     let warning: String?
+}
+
+struct EventDetailResponse: Codable {
+    let event: EventItem
+    let updated_at: String
 }
 
 enum ManualSource: String, Codable, CaseIterable, Identifiable {

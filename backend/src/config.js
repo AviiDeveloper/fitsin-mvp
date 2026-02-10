@@ -46,7 +46,8 @@ export const config = {
     dbId: process.env.NOTION_DB_ID || '',
     titleProperty: process.env.NOTION_TITLE_PROPERTY || 'Name',
     dateProperty: process.env.NOTION_DATE_PROPERTY || 'Date',
-    typeProperty: process.env.NOTION_TYPE_PROPERTY || 'Type'
+    typeProperty: process.env.NOTION_TYPE_PROPERTY || 'Type',
+    notesProperty: process.env.NOTION_NOTES_PROPERTY || 'Notes'
   },
   cacheTtlSeconds: Number(process.env.CACHE_TTL_SECONDS || 60),
   staleCacheMaxAgeSeconds: Number(process.env.STALE_CACHE_MAX_AGE_SECONDS || 3600)

@@ -81,6 +81,18 @@ final class APIClient {
         try await fetch(EventsResponse.self, path: "/v1/events")
     }
 
+    func getEvent(id: String) async throws -> EventDetailResponse {
+        let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
+        return try await fetch(EventDetailResponse.self, path: "/v1/events/\(encoded)")
+    }
+
+    func updateEventNote(id: String, note: String) async throws -> EventDetailResponse {
+        let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
+        let payload: [String: Any] = ["note": note]
+        let body = try JSONSerialization.data(withJSONObject: payload, options: [])
+        return try await fetch(EventDetailResponse.self, path: "/v1/events/\(encoded)", method: "PATCH", body: body)
+    }
+
     func getMonthGoal(month: String) async throws -> MonthGoalResponse {
         try await fetch(MonthGoalResponse.self, path: "/v1/month-goal?month=\(month)")
     }

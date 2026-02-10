@@ -91,7 +91,9 @@ struct EventsView: View {
     private var eventsList: some View {
         VStack(spacing: 8) {
             ForEach(Array(vm.events.enumerated()), id: \.element.id) { index, event in
-                Link(destination: URL(string: event.url)!) {
+                NavigationLink {
+                    EventDetailView(eventId: event.id, fallbackEvent: event)
+                } label: {
                     HStack(alignment: .center, spacing: 10) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(formattedDate(event.date))
@@ -109,7 +111,7 @@ struct EventsView: View {
                             StatusPill(text: type.uppercased(), tone: BrandTheme.accent)
                         }
 
-                        Image(systemName: "arrow.up.right")
+                        Image(systemName: "chevron.right")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(BrandTheme.inkSoft)
                     }

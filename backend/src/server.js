@@ -5,7 +5,7 @@ import morgan from 'morgan';
 import { config } from './config.js';
 import { requireAppCode } from './middleware/auth.js';
 import { computeMonthMetrics, computeTodayMetrics } from './services/metrics.js';
-import { fetchUpcomingEvents } from './services/notion.js';
+import { fetchEventById, fetchUpcomingEvents, updateEventNote } from './services/notion.js';
 import { buildInstallUrl, exchangeCodeForOfflineToken } from './services/shopifyOAuth.js';
 import { hasShopifyAccessToken } from './services/shopifyTokenStore.js';
 import { currentMonthKey, getMonthGoal, setMonthGoal } from './services/monthGoals.js';
@@ -121,6 +121,32 @@ app.get('/v1/events', async (_req, res) => {
     });
   } catch (error) {
     return res.status(502).json({ error: 'Failed to load events', detail: error.message });
+  }
+});
+
+app.get('/v1/events/:id', async (req, res) => {
+  try {
+    const event = await fetchEventById(req.params.id);
+    return res.json({
+      event,
+      updated_at: new Date().toISOString()
+    });
+  } catch (error) {
+    return res.status(502).json({ error: 'Failed to load event detail', detail: error.message });
+  }
+});
+
+app.patch('/v1/events/:id', async (req, res) => {
+  try {
+    const note = req.body?.note ?? '';
+    const event = await updateEventNote(req.params.id, note);
+    cache.delete('events');
+    return res.json({
+      event,
+      updated_at: new Date().toISOString()
+    });
+  } catch (error) {
+    return res.status(400).json({ error: 'Failed to update event', detail: error.message });
   }
 });
 
