@@ -183,6 +183,7 @@ async function fetchDatabaseDefinition() {
 async function listWorkspaceUsers() {
   const users = [];
   let cursor;
+  const excluded = new Set(config.notion.peopleExcludeIds);
 
   do {
     const query = cursor ? `?start_cursor=${encodeURIComponent(cursor)}&page_size=100` : '?page_size=100';
@@ -193,6 +194,8 @@ async function listWorkspaceUsers() {
 
     for (const u of data.results || []) {
       if (u.object !== 'user') continue;
+      if (u.type === 'bot') continue;
+      if (excluded.has(u.id)) continue;
       users.push({
         id: u.id,
         name: u.name || 'Unknown',

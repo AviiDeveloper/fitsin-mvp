@@ -50,7 +50,11 @@ export const config = {
     placeProperty: process.env.NOTION_PLACE_PROPERTY || 'Place',
     tagsProperty: process.env.NOTION_TAGS_PROPERTY || 'Tags',
     typeProperty: process.env.NOTION_TYPE_PROPERTY || 'Type',
-    notesProperty: process.env.NOTION_NOTES_PROPERTY || 'Notes'
+    notesProperty: process.env.NOTION_NOTES_PROPERTY || 'Notes',
+    peopleExcludeIds: (process.env.NOTION_PEOPLE_EXCLUDE_IDS || '')
+      .split(',')
+      .map((x) => x.trim())
+      .filter(Boolean)
   },
   cacheTtlSeconds: Number(process.env.CACHE_TTL_SECONDS || 60),
   staleCacheMaxAgeSeconds: Number(process.env.STALE_CACHE_MAX_AGE_SECONDS || 3600)
