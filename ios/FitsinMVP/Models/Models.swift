@@ -74,3 +74,23 @@ struct ManualEntriesResponse: Codable {
     let entries: [ManualEntry]
     let updated_at: String
 }
+
+struct DaySaleItem: Codable, Identifiable {
+    let id: String
+    let kind: String
+    let sold_at: String
+    let description: String
+    let quantity: Int
+    let amount: Double?
+    let source: String?
+    let note: String?
+    let order_name: String?
+}
+
+struct DaySalesResponse: Codable {
+    let date: String
+    let items: [DaySaleItem]
+    let updated_at: String
+    let data_delayed: Bool?
+    let warning: String?
+}

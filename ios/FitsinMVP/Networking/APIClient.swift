@@ -123,6 +123,11 @@ final class APIClient {
         let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
         _ = try await fetch(EmptyResponse.self, path: "/v1/manual-entries/\(encoded)", method: "DELETE")
     }
+
+    func getDaySales(date: String) async throws -> DaySalesResponse {
+        let encoded = date.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? date
+        return try await fetch(DaySalesResponse.self, path: "/v1/day?date=\(encoded)")
+    }
 }
 
 private struct EmptyResponse: Decodable {}

@@ -10,7 +10,9 @@ import { buildInstallUrl, exchangeCodeForOfflineToken } from './services/shopify
 import { hasShopifyAccessToken } from './services/shopifyTokenStore.js';
 import { currentMonthKey, getMonthGoal, setMonthGoal } from './services/monthGoals.js';
 import { createManualEntry, deleteManualEntry, listManualEntries } from './services/manualEntries.js';
+import { fetchDailySalesItems } from './services/shopify.js';
 import { TTLCache } from './utils/cache.js';
+import { DateTime } from 'luxon';
 
 const app = express();
 const cache = new TTLCache();
@@ -122,6 +124,51 @@ app.get('/v1/events', async (_req, res) => {
   }
 });
 
+app.get('/v1/day', async (req, res) => {
+  try {
+    const date = String(req.query.date || '').trim();
+    const parsed = DateTime.fromFormat(date, 'yyyy-LL-dd', { zone: config.timezone });
+    if (!parsed.isValid) {
+      return res.status(400).json({ error: 'Invalid date. Expected YYYY-MM-DD.' });
+    }
+
+    const key = `day:${date}`;
+    const { payload, stale } = await cached(key, async () => {
+      const [shopifyItems, manualEntries] = await Promise.all([
+        fetchDailySalesItems(date, config.timezone),
+        listManualEntries({ from: date, to: date, limit: 500 }, config.timezone)
+      ]);
+
+      const manualItems = manualEntries.map((entry) => ({
+        id: `manual:${entry.id}`,
+        kind: 'manual',
+        sold_at: entry.created_at,
+        description: entry.description || `${entry.source} sale`,
+        quantity: 1,
+        amount: Number(entry.amount || 0),
+        source: entry.source,
+        note: entry.note || null,
+        order_name: null
+      }));
+
+      const items = [...shopifyItems, ...manualItems].sort((a, b) => String(b.sold_at).localeCompare(String(a.sold_at)));
+      return {
+        date,
+        items,
+        updated_at: new Date().toISOString()
+      };
+    });
+
+    return res.json({
+      ...payload,
+      data_delayed: Boolean(stale),
+      warning: stale ? 'Showing cached data due to temporary upstream issues.' : null
+    });
+  } catch (error) {
+    return res.status(502).json({ error: 'Failed to load day sales', detail: error.message });
+  }
+});
+
 app.get('/v1/month-goal', async (req, res) => {
   try {
     const month = String(req.query.month || currentMonthKey(config.timezone));
@@ -170,6 +217,7 @@ app.post('/v1/manual-entries', async (req, res) => {
     const entry = await createManualEntry(req.body, config.timezone);
     cache.delete('today');
     cache.delete('month');
+    cache.delete(`day:${entry.date}`);
     return res.status(201).json(entry);
   } catch (error) {
     return res.status(400).json({ error: 'Failed to create manual entry', detail: error.message });
@@ -178,9 +226,10 @@ app.post('/v1/manual-entries', async (req, res) => {
 
 app.delete('/v1/manual-entries/:id', async (req, res) => {
   try {
-    await deleteManualEntry(req.params.id);
+    const deleted = await deleteManualEntry(req.params.id);
     cache.delete('today');
     cache.delete('month');
+    if (deleted?.date) cache.delete(`day:${deleted.date}`);
     return res.status(204).send();
   } catch (error) {
     if (error.message === 'Manual entry not found.') {

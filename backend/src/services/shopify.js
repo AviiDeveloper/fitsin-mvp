@@ -66,6 +66,47 @@ async function fetchOrdersBetween(startIso, endIso) {
   return orders;
 }
 
+async function fetchOrdersWithLineItemsBetween(startIso, endIso) {
+  const query = `#graphql
+    query OrdersInRangeWithItems($first: Int!, $after: String, $query: String!) {
+      orders(first: $first, after: $after, query: $query, sortKey: CREATED_AT) {
+        pageInfo { hasNextPage endCursor }
+        edges {
+          node {
+            id
+            name
+            createdAt
+            currentTotalPriceSet { shopMoney { amount currencyCode } }
+            lineItems(first: 100) {
+              edges {
+                node {
+                  id
+                  name
+                  quantity
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const q = `created_at:>=${startIso} created_at:<${endIso} status:any`;
+
+  let after = null;
+  const orders = [];
+
+  do {
+    const data = await shopifyGraphQL(query, { first: 100, after, query: q });
+    const chunk = data.orders.edges.map((edge) => edge.node);
+    orders.push(...chunk);
+    after = data.orders.pageInfo.hasNextPage ? data.orders.pageInfo.endCursor : null;
+  } while (after);
+
+  return orders;
+}
+
 function toDateKey(iso, timezone) {
   return DateTime.fromISO(iso, { zone: 'utc' }).setZone(timezone).toFormat('yyyy-LL-dd');
 }
@@ -134,4 +175,39 @@ export function buildHistoricalRows(salesMap, beforeDate, timezone) {
     }
   }
   return rows;
+}
+
+export async function fetchDailySalesItems(dateKey, timezone) {
+  const day = DateTime.fromFormat(dateKey, 'yyyy-LL-dd', { zone: timezone });
+  if (!day.isValid) {
+    throw new Error('Invalid date. Expected YYYY-MM-DD.');
+  }
+
+  const start = day.startOf('day');
+  const end = start.plus({ days: 1 });
+  const orders = await fetchOrdersWithLineItemsBetween(start.toISO(), end.toISO());
+  const items = [];
+
+  for (const order of orders) {
+    const lineItems = Array.isArray(order.lineItems?.edges) ? order.lineItems.edges : [];
+
+    for (const edge of lineItems) {
+      const line = edge?.node;
+      if (!line) continue;
+
+      items.push({
+        id: `shopify:${order.id}:${line.id}`,
+        kind: 'shopify',
+        sold_at: order.createdAt,
+        description: line.name || 'Item',
+        quantity: Number(line.quantity || 1),
+        amount: null,
+        order_name: order.name || null,
+        source: 'shopify'
+      });
+    }
+  }
+
+  items.sort((a, b) => String(b.sold_at).localeCompare(String(a.sold_at)));
+  return items;
 }

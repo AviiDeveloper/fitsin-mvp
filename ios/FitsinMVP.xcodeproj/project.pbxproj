@@ -18,6 +18,8 @@
 		9EDC5BFD61465E5258262A04 /* AccessCodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 310192D580868CFBA32D1EA4 /* AccessCodeView.swift */; };
 		9F6A6F55CEA701761C3FAA54 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A787B438005D164BE2C446FB /* KeychainStore.swift */; };
 		A02610D062A695084CA450B5 /* TodayViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C6DA6039C885ADA5E58C34F /* TodayViewModel.swift */; };
+		A82A9B9584721AB4DBC2ED0F /* DaySalesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB57C26345043D4109607A31 /* DaySalesView.swift */; };
+		ABB87B6891946BE5F81D7416 /* DaySalesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1999F02FFEAF0CD739D737BD /* DaySalesViewModel.swift */; };
 		B3A22D1506DFA4E4379CF8B3 /* FitsinMVPApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390976B1D48E94CF82034690 /* FitsinMVPApp.swift */; };
 		B5455C0585FCD0FD4DAB880E /* EventsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5BDD48CB210F29F2059855A /* EventsView.swift */; };
 		C486097A4194B87F5C27CED5 /* ManualEntriesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACD26053C9635CFB571D6C2C /* ManualEntriesViewModel.swift */; };
@@ -28,6 +30,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		1999F02FFEAF0CD739D737BD /* DaySalesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaySalesViewModel.swift; sourceTree = "<group>"; };
 		1C6DA6039C885ADA5E58C34F /* TodayViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayViewModel.swift; sourceTree = "<group>"; };
 		20EDD679368504B378C91328 /* BrandTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandTheme.swift; sourceTree = "<group>"; };
 		284D1B91E4E53821B0E7A074 /* FitsinMVP.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FitsinMVP.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -47,6 +50,7 @@
 		E44768E4F1BFA83F8F0E1155 /* ManualEntriesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualEntriesView.swift; sourceTree = "<group>"; };
 		E5BDD48CB210F29F2059855A /* EventsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventsView.swift; sourceTree = "<group>"; };
 		E9472A5284069053C7CFBFA1 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		EB57C26345043D4109607A31 /* DaySalesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaySalesView.swift; sourceTree = "<group>"; };
 		EB6F9224CAC5304B223D9769 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -63,6 +67,7 @@
 			isa = PBXGroup;
 			children = (
 				5EA54E30CE95E77C183517AD /* AppSession.swift */,
+				1999F02FFEAF0CD739D737BD /* DaySalesViewModel.swift */,
 				B7CEFD5752BDE67AA865C879 /* EventsViewModel.swift */,
 				ACD26053C9635CFB571D6C2C /* ManualEntriesViewModel.swift */,
 				72C71292C9025697C4973A1A /* MonthViewModel.swift */,
@@ -131,6 +136,7 @@
 			children = (
 				310192D580868CFBA32D1EA4 /* AccessCodeView.swift */,
 				20EDD679368504B378C91328 /* BrandTheme.swift */,
+				EB57C26345043D4109607A31 /* DaySalesView.swift */,
 				E5BDD48CB210F29F2059855A /* EventsView.swift */,
 				E44768E4F1BFA83F8F0E1155 /* ManualEntriesView.swift */,
 				2B1B7B509345388ACDACADA3 /* MonthView.swift */,
@@ -206,6 +212,8 @@
 				9EDC5BFD61465E5258262A04 /* AccessCodeView.swift in Sources */,
 				DDCE160C3184D8BC37BEACB9 /* AppSession.swift in Sources */,
 				29082102D4E1B3CBD318B8DF /* BrandTheme.swift in Sources */,
+				A82A9B9584721AB4DBC2ED0F /* DaySalesView.swift in Sources */,
+				ABB87B6891946BE5F81D7416 /* DaySalesViewModel.swift in Sources */,
 				B5455C0585FCD0FD4DAB880E /* EventsView.swift in Sources */,
 				21CD2E400AB20A3C434BA29F /* EventsViewModel.swift in Sources */,
 				B3A22D1506DFA4E4379CF8B3 /* FitsinMVPApp.swift in Sources */,

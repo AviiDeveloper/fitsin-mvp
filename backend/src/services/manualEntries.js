@@ -89,13 +89,14 @@ export async function deleteManualEntry(entryId) {
   if (!id) throw new Error('Entry id is required.');
 
   const entries = await readAll();
-  const next = entries.filter((entry) => entry.id !== id);
-
-  if (next.length === entries.length) {
+  const deleted = entries.find((entry) => entry.id === id);
+  if (!deleted) {
     throw new Error('Manual entry not found.');
   }
 
+  const next = entries.filter((entry) => entry.id !== id);
   await writeAll(next);
+  return deleted;
 }
 
 export async function dailyManualSalesMap(startDate, endDateExclusive, timezone) {
