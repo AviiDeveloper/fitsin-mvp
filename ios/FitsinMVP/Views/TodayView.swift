@@ -35,8 +35,10 @@ struct TodayView: View {
         londonCalendar.component(.weekday, from: Date()) == 1
     }
 
-    private var gridColumns: [GridItem] {
-        [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
+    private var progressTone: Color {
+        guard let data = vm.data else { return BrandTheme.accent }
+        if isSundayToday { return BrandTheme.danger }
+        return data.pct >= 100 ? BrandTheme.success : BrandTheme.accent
     }
 
     var body: some View {
@@ -45,22 +47,23 @@ struct TodayView: View {
                 DashboardBackground()
 
                 ScrollView {
-                    VStack(spacing: 18) {
+                    VStack(spacing: 14) {
                         if let data = vm.data {
-                            heroSection(data: data)
-                                .transition(.opacity.combined(with: .move(edge: .top)))
+                            primaryCard(data: data)
+                                .opacity(animateIn ? 1 : 0)
+                                .offset(y: animateIn ? 0 : 10)
 
-                            DashboardSection(title: "Today Breakdown", subtitle: isSundayToday ? "Store closed on Sundays" : "Live performance against target") {
-                                todayGrid(data: data)
-                            }
+                            kpiCard(data: data)
+                                .opacity(animateIn ? 1 : 0)
+                                .offset(y: animateIn ? 0 : 10)
 
-                            DashboardSection(title: "Week Ahead", subtitle: "Next 7 days target and actual") {
-                                weekAheadStrip
-                            }
+                            weekCard
+                                .opacity(animateIn ? 1 : 0)
+                                .offset(y: animateIn ? 0 : 10)
 
-                            DashboardSection(title: "Manual Sale Entry", subtitle: "Add Vinted, website, cash, or other sales") {
-                                manualEntryCard
-                            }
+                            manualEntryDisclosure
+                                .opacity(animateIn ? 1 : 0)
+                                .offset(y: animateIn ? 0 : 10)
                         } else {
                             ProgressView("Loading today dashboard...")
                                 .frame(maxWidth: .infinity, alignment: .center)
@@ -84,15 +87,13 @@ struct TodayView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .opacity(animateIn ? 1 : 0)
-                    .offset(y: animateIn ? 0 : 10)
                 }
                 .refreshable { await vm.load() }
             }
             .task {
                 await vm.load()
                 animateIn = false
-                withAnimation(.spring(duration: 0.45, bounce: 0.22)) {
+                withAnimation(.easeOut(duration: 0.35)) {
                     animateIn = true
                 }
                 vm.startAutoRefresh(intervalSeconds: 15)
@@ -103,13 +104,13 @@ struct TodayView: View {
         }
     }
 
-    private func heroSection(data: TodayMetrics) -> some View {
+    private func primaryCard(data: TodayMetrics) -> some View {
         let progress = isSundayToday ? 0 : min(max(data.pct / 100.0, 0), 1)
 
         return VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("TODAY")
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("PRIMARY STATUS")
                         .font(.caption.weight(.semibold))
                         .tracking(1)
                         .foregroundStyle(BrandTheme.inkSoft)
@@ -119,39 +120,32 @@ struct TodayView: View {
                 }
                 Spacer()
                 StatusPill(
-                    text: isSundayToday ? "Sunday" : (data.pct >= 100 ? "On Pace" : "Tracking"),
-                    tone: isSundayToday ? BrandTheme.danger : (data.pct >= 100 ? BrandTheme.success : BrandTheme.accent)
+                    text: isSundayToday ? "Sunday" : (data.pct >= 100 ? "Above Target" : "Needs Push"),
+                    tone: progressTone
                 )
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule()
-                            .fill(BrandTheme.ink.opacity(0.08))
-                            .frame(height: 12)
-                        Capsule()
-                            .fill(
-                                LinearGradient(
-                                    colors: [BrandTheme.accent, BrandTheme.accent.opacity(0.68)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .frame(width: max(8, geo.size.width * animatedProgress), height: 12)
-                    }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(BrandTheme.ink.opacity(0.08))
+                        .frame(height: 12)
+                    Capsule()
+                        .fill(progressTone)
+                        .frame(width: max(8, geo.size.width * animatedProgress), height: 12)
                 }
-                .frame(height: 12)
-                HStack {
-                    Text(isSundayToday ? "Store closed today" : "\(Int(data.pct))% of daily target")
+            }
+            .frame(height: 12)
+
+            HStack {
+                Text(isSundayToday ? "Store closed today" : "\(Int(data.pct))% of target reached")
                     .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(BrandTheme.inkSoft)
+                Spacer()
+                if !isSundayToday {
+                    Text("Updated \(formatTimestamp(data.updated_at))")
+                        .font(.caption)
                         .foregroundStyle(BrandTheme.inkSoft)
-                    Spacer()
-                    if !isSundayToday {
-                        Text("Updated \(formatTimestamp(data.updated_at))")
-                            .font(.caption)
-                            .foregroundStyle(BrandTheme.inkSoft)
-                    }
                 }
             }
         }
@@ -159,75 +153,111 @@ struct TodayView: View {
         .vintageCard()
         .onAppear {
             animatedProgress = 0
-            withAnimation(.easeOut(duration: 0.75)) {
+            withAnimation(.easeOut(duration: 0.6)) {
                 animatedProgress = progress
             }
         }
         .onChange(of: data.pct) { _, newValue in
-            withAnimation(.easeOut(duration: 0.5)) {
+            withAnimation(.easeOut(duration: 0.4)) {
                 animatedProgress = isSundayToday ? 0 : min(max(newValue / 100.0, 0), 1)
             }
         }
     }
 
-    private func todayGrid(data: TodayMetrics) -> some View {
-        LazyVGrid(columns: gridColumns, spacing: 10) {
-            StatTile(
-                title: "Actual",
-                value: isSundayToday ? "Closed" : (gbp.string(from: NSNumber(value: data.actual_today)) ?? "£0"),
-                tone: isSundayToday ? BrandTheme.danger : BrandTheme.ink
-            )
-            StatTile(
-                title: "Target",
-                value: isSundayToday ? "Closed" : (gbp.string(from: NSNumber(value: data.target_today)) ?? "£0"),
-                tone: isSundayToday ? BrandTheme.danger : BrandTheme.ink
-            )
-            StatTile(
-                title: "Remaining",
-                value: isSundayToday ? "Closed" : (gbp.string(from: NSNumber(value: data.remaining)) ?? "£0"),
-                tone: isSundayToday ? BrandTheme.danger : (data.remaining <= 0 ? BrandTheme.success : BrandTheme.accent)
-            )
+    private func kpiCard(data: TodayMetrics) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Numbers")
+                .sectionHeaderStyle()
+
+            HStack(spacing: 10) {
+                StatTile(
+                    title: "Target",
+                    value: isSundayToday ? "Closed" : (gbp.string(from: NSNumber(value: data.target_today)) ?? "£0"),
+                    tone: isSundayToday ? BrandTheme.danger : BrandTheme.ink
+                )
+                StatTile(
+                    title: "Remaining",
+                    value: isSundayToday ? "Closed" : (gbp.string(from: NSNumber(value: data.remaining)) ?? "£0"),
+                    tone: isSundayToday ? BrandTheme.danger : (data.remaining <= 0 ? BrandTheme.success : BrandTheme.accent)
+                )
+            }
+
             StatTile(
                 title: "Month Goal",
                 value: gbp.string(from: NSNumber(value: data.month_goal ?? 0)) ?? "Not set",
                 tone: data.month_goal == nil ? BrandTheme.inkSoft : BrandTheme.ink
             )
         }
+        .vintageCard()
     }
 
-    private var weekAheadStrip: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                ForEach(Array(vm.weekAhead.enumerated()), id: \.element.id) { index, day in
-                    let isSunday = londonCalendar.component(.weekday, from: day.date) == 1
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(dayLabel.string(from: day.date))
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(BrandTheme.inkSoft)
-                        if isSunday {
-                            Text("Closed")
-                                .font(.headline.weight(.bold))
-                                .foregroundStyle(BrandTheme.danger)
-                        } else {
-                            Text(gbp.string(from: NSNumber(value: day.target)) ?? "£0")
-                                .font(.headline.weight(.bold))
-                                .foregroundStyle(BrandTheme.ink)
-                            Text("Actual: \(gbp.string(from: NSNumber(value: day.actual)) ?? "£0")")
-                                .font(.caption)
+    private var weekCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Next 7 Days")
+                .sectionHeaderStyle()
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(vm.weekAhead) { day in
+                        let isSunday = londonCalendar.component(.weekday, from: day.date) == 1
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(dayLabel.string(from: day.date).uppercased())
+                                .font(.caption.weight(.bold))
+                                .tracking(0.4)
                                 .foregroundStyle(BrandTheme.inkSoft)
+
+                            if isSunday {
+                                Text("Closed")
+                                    .font(.subheadline.weight(.bold))
+                                    .foregroundStyle(BrandTheme.danger)
+                            } else {
+                                Text(gbp.string(from: NSNumber(value: day.target)) ?? "£0")
+                                    .font(.subheadline.weight(.bold))
+                                    .foregroundStyle(BrandTheme.ink)
+                                Text("A: \(gbp.string(from: NSNumber(value: day.actual)) ?? "£0")")
+                                    .font(.caption)
+                                    .foregroundStyle(BrandTheme.inkSoft)
+                            }
                         }
+                        .padding(10)
+                        .frame(width: 120, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(isSunday ? BrandTheme.danger.opacity(0.08) : BrandTheme.surface)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(BrandTheme.outline, lineWidth: 1)
+                        )
                     }
-                    .frame(width: 128, alignment: .leading)
-                    .vintageCard()
-                    .scaleEffect(animateIn ? 1 : 0.95)
-                    .opacity(animateIn ? 1 : 0)
-                    .animation(.spring(duration: 0.45).delay(Double(index) * 0.04), value: animateIn)
                 }
             }
         }
+        .vintageCard()
     }
 
-    private var manualEntryCard: some View {
+    private var manualEntryDisclosure: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            DisclosureGroup {
+                manualEntryForm
+                    .padding(.top, 6)
+            } label: {
+                HStack {
+                    Text("Log Non-Shopify Sale")
+                        .sectionHeaderStyle()
+                    Spacer()
+                    Text("Vinted / Cash / Other")
+                        .font(.caption)
+                        .foregroundStyle(BrandTheme.inkSoft)
+                }
+            }
+            .tint(BrandTheme.ink)
+        }
+        .vintageCard()
+    }
+
+    private var manualEntryForm: some View {
         VStack(alignment: .leading, spacing: 10) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -281,7 +311,7 @@ struct TodayView: View {
                     if vm.isSavingManualEntry {
                         ProgressView().tint(.white)
                     }
-                    Text(vm.isSavingManualEntry ? "Saving..." : "Save Manual Sale")
+                    Text(vm.isSavingManualEntry ? "Saving..." : "Save Sale")
                         .font(.subheadline.weight(.semibold))
                 }
                 .frame(maxWidth: .infinity)
@@ -294,7 +324,6 @@ struct TodayView: View {
             }
             .disabled(!canSaveManual || vm.isSavingManualEntry)
         }
-        .vintageCard()
     }
 
     private var canSaveManual: Bool {
@@ -333,7 +362,7 @@ struct FitsinInputStyle: TextFieldStyle {
             .padding(11)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(BrandTheme.surfaceStrong)
+                    .fill(BrandTheme.surface)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10)

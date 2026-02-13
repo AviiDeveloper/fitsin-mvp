@@ -36,12 +36,13 @@ async function shopifyGraphQL(query, variables = {}) {
 async function fetchOrdersBetween(startIso, endIso) {
   const query = `#graphql
     query OrdersInRange($first: Int!, $after: String, $query: String!) {
-      orders(first: $first, after: $after, query: $query, sortKey: CREATED_AT) {
+      orders(first: $first, after: $after, query: $query, sortKey: PROCESSED_AT) {
         pageInfo { hasNextPage endCursor }
         edges {
           node {
             id
             createdAt
+            processedAt
             currentTotalPriceSet { shopMoney { amount currencyCode } }
             currentSubtotalPriceSet { shopMoney { amount currencyCode } }
             currentTotalTaxSet { shopMoney { amount currencyCode } }
@@ -51,7 +52,7 @@ async function fetchOrdersBetween(startIso, endIso) {
     }
   `;
 
-  const q = `created_at:>=${startIso} created_at:<${endIso} status:any`;
+  const q = `processed_at:>=${startIso} processed_at:<${endIso} status:any`;
 
   let after = null;
   const orders = [];
@@ -69,13 +70,14 @@ async function fetchOrdersBetween(startIso, endIso) {
 async function fetchOrdersWithLineItemsBetween(startIso, endIso) {
   const query = `#graphql
     query OrdersInRangeWithItems($first: Int!, $after: String, $query: String!) {
-      orders(first: $first, after: $after, query: $query, sortKey: CREATED_AT) {
+      orders(first: $first, after: $after, query: $query, sortKey: PROCESSED_AT) {
         pageInfo { hasNextPage endCursor }
         edges {
           node {
             id
             name
             createdAt
+            processedAt
             currentTotalPriceSet { shopMoney { amount currencyCode } }
             lineItems(first: 100) {
               edges {
@@ -92,7 +94,7 @@ async function fetchOrdersWithLineItemsBetween(startIso, endIso) {
     }
   `;
 
-  const q = `created_at:>=${startIso} created_at:<${endIso} status:any`;
+  const q = `processed_at:>=${startIso} processed_at:<${endIso} status:any`;
 
   let after = null;
   const orders = [];
@@ -108,7 +110,11 @@ async function fetchOrdersWithLineItemsBetween(startIso, endIso) {
 }
 
 function toDateKey(iso, timezone) {
-  return DateTime.fromISO(iso, { zone: 'utc' }).setZone(timezone).toFormat('yyyy-LL-dd');
+  return DateTime.fromISO(iso, { setZone: true }).setZone(timezone).toFormat('yyyy-LL-dd');
+}
+
+function orderSaleTimestamp(order) {
+  return order?.processedAt || order?.createdAt || null;
 }
 
 export async function fetchDailySalesMap(startDate, endDateExclusive, timezone) {
@@ -116,7 +122,9 @@ export async function fetchDailySalesMap(startDate, endDateExclusive, timezone) 
   const map = new Map();
 
   for (const order of orders) {
-    const key = toDateKey(order.createdAt, timezone);
+    const saleTimestamp = orderSaleTimestamp(order);
+    if (!saleTimestamp) continue;
+    const key = toDateKey(saleTimestamp, timezone);
     const total = Number(order.currentTotalPriceSet?.shopMoney?.amount || 0);
     const subtotal = Number(order.currentSubtotalPriceSet?.shopMoney?.amount || 0);
     const tax = Number(order.currentTotalTaxSet?.shopMoney?.amount || 0);
@@ -189,6 +197,8 @@ export async function fetchDailySalesItems(dateKey, timezone) {
   const items = [];
 
   for (const order of orders) {
+    const soldAt = orderSaleTimestamp(order);
+    if (!soldAt) continue;
     const lineItems = Array.isArray(order.lineItems?.edges) ? order.lineItems.edges : [];
 
     for (const edge of lineItems) {
@@ -198,7 +208,7 @@ export async function fetchDailySalesItems(dateKey, timezone) {
       items.push({
         id: `shopify:${order.id}:${line.id}`,
         kind: 'shopify',
-        sold_at: order.createdAt,
+        sold_at: soldAt,
         description: line.name || 'Item',
         quantity: Number(line.quantity || 1),
         amount: null,

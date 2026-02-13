@@ -41,17 +41,11 @@ struct MonthView: View {
                 DashboardBackground()
 
                 ScrollView {
-                    VStack(spacing: 18) {
+                    VStack(spacing: 14) {
                         if let data = vm.data {
-                            overviewCard(data: data)
-
-                            DashboardSection(title: "Month Totals", subtitle: "Current progress and projection") {
-                                totalsGrid(data: data)
-                            }
-
-                            DashboardSection(title: "Daily Performance", subtitle: "Most recent day first") {
-                                dailyRows(data: data)
-                            }
+                            monthStatusCard(data: data)
+                            targetsCard(data: data)
+                            completedDaysCard(data: data)
                         } else {
                             ProgressView("Loading month dashboard...")
                                 .frame(maxWidth: .infinity, alignment: .center)
@@ -78,7 +72,7 @@ struct MonthView: View {
             .task {
                 await vm.load()
                 animateIn = false
-                withAnimation(.spring(duration: 0.45, bounce: 0.2)) {
+                withAnimation(.easeOut(duration: 0.35)) {
                     animateIn = true
                 }
                 vm.startAutoRefresh(intervalSeconds: 15)
@@ -109,46 +103,55 @@ struct MonthView: View {
         }
     }
 
-    private func overviewCard(data: MonthMetrics) -> some View {
+    private func monthStatusCard(data: MonthMetrics) -> some View {
         let paceTone = data.ahead_behind >= 0 ? BrandTheme.success : BrandTheme.danger
-        let paceText = data.ahead_behind >= 0 ? "Ahead" : "Behind"
+        let paceText = data.ahead_behind >= 0 ? "Ahead of pace" : "Behind pace"
+        let achieved = min(max(data.mtd_actual / max(data.mtd_target, 1), 0), 1)
 
         return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("THIS MONTH")
+                    Text("PRIMARY STATUS")
                         .font(.caption.weight(.semibold))
                         .tracking(1)
                         .foregroundStyle(BrandTheme.inkSoft)
                     Text(gbp.string(from: NSNumber(value: data.mtd_actual)) ?? "£0")
                         .font(.system(size: 42, weight: .black, design: .rounded))
                         .foregroundStyle(BrandTheme.ink)
+                    Text("Month-to-date actual")
+                        .font(.subheadline)
+                        .foregroundStyle(BrandTheme.inkSoft)
                 }
                 Spacer()
-                VStack(alignment: .trailing, spacing: 8) {
-                    StatusPill(text: paceText, tone: paceTone)
-                    Button {
-                        showingProjectionCalendar = true
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "calendar")
-                            Text("Plan")
-                        }
+                StatusPill(text: paceText.uppercased(), tone: paceTone)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("Progress vs MTD target")
                         .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background(
-                            Capsule()
-                                .fill(BrandTheme.accent.opacity(0.14))
-                        )
-                        .foregroundStyle(BrandTheme.accent)
-                    }
-                    .buttonStyle(.plain)
+                        .foregroundStyle(BrandTheme.inkSoft)
+                    Spacer()
+                    Text("\(Int(achieved * 100))%")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(BrandTheme.inkSoft)
                 }
+
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(BrandTheme.ink.opacity(0.08))
+                            .frame(height: 11)
+                        Capsule()
+                            .fill(paceTone)
+                            .frame(width: max(8, geo.size.width * achieved), height: 11)
+                    }
+                }
+                .frame(height: 11)
             }
 
             HStack {
-                Text("MTD vs target")
+                Text("Gap to target")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(BrandTheme.inkSoft)
                 Spacer()
@@ -156,73 +159,159 @@ struct MonthView: View {
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(paceTone)
             }
+
+            Text("Updated \(formatTimestamp(data.updated_at))")
+                .font(.caption)
+                .foregroundStyle(BrandTheme.inkSoft)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .vintageCard()
     }
 
-    private func totalsGrid(data: MonthMetrics) -> some View {
+    private func targetsCard(data: MonthMetrics) -> some View {
         let projection = totalMonthProjection(from: data)
 
-        return LazyVGrid(columns: gridColumns, spacing: 10) {
-            StatTile(title: "MTD Actual", value: gbp.string(from: NSNumber(value: data.mtd_actual)) ?? "£0", tone: BrandTheme.ink)
-            StatTile(title: "MTD Target", value: gbp.string(from: NSNumber(value: data.mtd_target)) ?? "£0", tone: BrandTheme.ink)
-            StatTile(title: "Month Projection", value: gbp.string(from: NSNumber(value: projection)) ?? "£0", tone: BrandTheme.accent)
-            StatTile(title: "Month Goal", value: gbp.string(from: NSNumber(value: vm.monthGoal ?? 0)) ?? "Not set", tone: vm.monthGoal == nil ? BrandTheme.inkSoft : BrandTheme.success)
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("Targets & Forecast")
+                .sectionHeaderStyle()
+
+            LazyVGrid(columns: gridColumns, spacing: 10) {
+                StatTile(
+                    title: "MTD Target",
+                    value: gbp.string(from: NSNumber(value: data.mtd_target)) ?? "£0",
+                    tone: BrandTheme.ink
+                )
+                StatTile(
+                    title: "Month Projection",
+                    value: gbp.string(from: NSNumber(value: projection)) ?? "£0",
+                    tone: BrandTheme.accent
+                )
+                StatTile(
+                    title: "Month Goal",
+                    value: gbp.string(from: NSNumber(value: vm.monthGoal ?? 0)) ?? "Not set",
+                    tone: vm.monthGoal == nil ? BrandTheme.inkSoft : BrandTheme.success
+                )
+                StatTile(
+                    title: "Days Logged",
+                    value: "\(filteredDays(from: data).count)",
+                    tone: BrandTheme.ink
+                )
+            }
+
+            HStack(spacing: 8) {
+                Button {
+                    if let goal = vm.monthGoal {
+                        goalInput = String(format: "%.2f", goal)
+                    } else {
+                        goalInput = ""
+                    }
+                    showingGoalSheet = true
+                } label: {
+                    Label("Edit Goal", systemImage: "slider.horizontal.3")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 11)
+                                .fill(BrandTheme.ink.opacity(0.08))
+                        )
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(BrandTheme.ink)
+
+                Button {
+                    showingProjectionCalendar = true
+                } label: {
+                    Label("Calendar", systemImage: "calendar")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 11)
+                                .fill(BrandTheme.accent.opacity(0.14))
+                        )
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(BrandTheme.accent)
+            }
         }
+        .vintageCard()
     }
 
-    private func dailyRows(data: MonthMetrics) -> some View {
-        VStack(spacing: 8) {
-            ForEach(Array(filteredDays(from: data).reversed().enumerated()), id: \.element.id) { index, day in
-                let sunday = isSunday(day.date)
-                NavigationLink {
-                    DaySalesView(date: day.date)
-                } label: {
-                    HStack(alignment: .center, spacing: 10) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(displayDate(day.date))
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(BrandTheme.ink)
-                            Text(sunday ? "Closed" : "Tap to view item sales")
-                                .font(.caption)
-                                .foregroundStyle(sunday ? BrandTheme.danger : BrandTheme.inkSoft)
-                        }
+    private func completedDaysCard(data: MonthMetrics) -> some View {
+        let days = Array(filteredDays(from: data).reversed())
 
-                        Spacer()
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("Completed Days")
+                .sectionHeaderStyle()
 
-                        if sunday {
-                            StatusPill(text: "Closed", tone: BrandTheme.danger)
-                        } else {
-                            VStack(alignment: .trailing, spacing: 2) {
-                                Text("A \(gbp.string(from: NSNumber(value: day.actual)) ?? "£0")")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(BrandTheme.ink)
-                                Text("T \(gbp.string(from: NSNumber(value: day.target)) ?? "£0")")
-                                    .font(.caption)
-                                    .foregroundStyle(BrandTheme.inkSoft)
-                            }
-                        }
-
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(BrandTheme.inkSoft.opacity(0.75))
-                            .padding(.leading, 2)
-                    }
+            if days.isEmpty {
+                Text("No completed days yet for this month.")
+                    .font(.subheadline)
+                    .foregroundStyle(BrandTheme.inkSoft)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(12)
                     .background(
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(sunday ? BrandTheme.danger.opacity(0.08) : BrandTheme.surfaceStrong)
+                            .fill(BrandTheme.surface)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(BrandTheme.outline, lineWidth: 1)
                     )
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(Array(days.enumerated()), id: \.element.id) { index, day in
+                        let sunday = isSunday(day.date)
+
+                        NavigationLink {
+                            DaySalesView(date: day.date)
+                        } label: {
+                            HStack(spacing: 10) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(displayDate(day.date))
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(BrandTheme.ink)
+                                    Text(sunday ? "Store closed" : "Tap for item breakdown")
+                                        .font(.caption)
+                                        .foregroundStyle(sunday ? BrandTheme.danger : BrandTheme.inkSoft)
+                                }
+
+                                Spacer()
+
+                                if sunday {
+                                    StatusPill(text: "Closed", tone: BrandTheme.danger)
+                                } else {
+                                    VStack(alignment: .trailing, spacing: 2) {
+                                        Text(gbp.string(from: NSNumber(value: day.actual)) ?? "£0")
+                                            .font(.subheadline.weight(.bold))
+                                            .foregroundStyle(BrandTheme.ink)
+                                        Text("Target \(gbp.string(from: NSNumber(value: day.target)) ?? "£0")")
+                                            .font(.caption)
+                                            .foregroundStyle(BrandTheme.inkSoft)
+                                    }
+                                }
+
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(BrandTheme.inkSoft)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(sunday ? BrandTheme.danger.opacity(0.08) : BrandTheme.surface)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(BrandTheme.outline, lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .opacity(animateIn ? 1 : 0)
+                        .offset(y: animateIn ? 0 : 8)
+                        .animation(.easeOut(duration: 0.28).delay(Double(index) * 0.02), value: animateIn)
+                    }
                 }
-                .buttonStyle(.plain)
-                .opacity(animateIn ? 1 : 0)
-                .offset(y: animateIn ? 0 : 10)
-                .animation(.easeOut(duration: 0.35).delay(Double(index) * 0.02), value: animateIn)
             }
         }
         .vintageCard()
@@ -237,7 +326,7 @@ struct MonthView: View {
                         Text("Monthly Goal")
                             .font(.title3.weight(.bold))
                             .foregroundStyle(BrandTheme.ink)
-                        Text("This value is used to rebalance remaining daily targets.")
+                        Text("Remaining daily targets rebalance to hit this number.")
                             .font(.subheadline)
                             .foregroundStyle(BrandTheme.inkSoft)
                     }
@@ -299,11 +388,11 @@ struct MonthView: View {
                 ScrollView {
                     VStack(spacing: 12) {
                         if let data = vm.data {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Remaining Month Projections")
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Projection Calendar")
                                     .font(.headline.weight(.semibold))
                                     .foregroundStyle(BrandTheme.ink)
-                                Text("Targets from today until the end of this month.")
+                                Text("Forecast from today until month end.")
                                     .font(.subheadline)
                                     .foregroundStyle(BrandTheme.inkSoft)
                             }
@@ -328,7 +417,7 @@ struct MonthView: View {
                                 .padding(12)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .fill(sunday ? BrandTheme.danger.opacity(0.08) : BrandTheme.surfaceStrong)
+                                        .fill(sunday ? BrandTheme.danger.opacity(0.08) : BrandTheme.surface)
                                 )
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 12)
@@ -356,8 +445,10 @@ struct MonthView: View {
     }
 
     private func filteredDays(from data: MonthMetrics) -> [MonthDay] {
-        let cal = Calendar(identifier: .gregorian)
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Europe/London") ?? .current
         let today = cal.startOfDay(for: Date())
+
         return data.days.filter { day in
             guard let date = dayParser.date(from: day.date) else { return false }
             return cal.startOfDay(for: date) <= today
@@ -365,8 +456,10 @@ struct MonthView: View {
     }
 
     private func remainingDays(from data: MonthMetrics) -> [MonthDay] {
-        let cal = Calendar(identifier: .gregorian)
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Europe/London") ?? .current
         let today = cal.startOfDay(for: Date())
+
         return data.days.filter { day in
             guard let date = dayParser.date(from: day.date) else { return false }
             return cal.startOfDay(for: date) >= today
@@ -389,5 +482,21 @@ struct MonthView: View {
     private func displayDate(_ raw: String) -> String {
         guard let date = dayParser.date(from: raw) else { return raw }
         return displayDay.string(from: date)
+    }
+
+    private func formatTimestamp(_ raw: String) -> String {
+        let parser = ISO8601DateFormatter()
+        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let fallback = ISO8601DateFormatter()
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "d MMM, HH:mm"
+        formatter.locale = Locale(identifier: "en_GB")
+        formatter.timeZone = TimeZone(identifier: "Europe/London")
+
+        if let date = parser.date(from: raw) ?? fallback.date(from: raw) {
+            return formatter.string(from: date)
+        }
+        return "-"
     }
 }
