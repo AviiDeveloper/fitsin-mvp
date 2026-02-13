@@ -86,10 +86,11 @@ export function buildSmartMonthTargets({ monthStart, nextMonthStart, now, baseTa
 export async function computeTodayMetrics() {
   const now = DateTime.now().setZone(config.timezone);
   const todayStart = now.startOf('day');
-  const tomorrowStart = todayStart.plus({ days: 1 });
   const monthStart = now.startOf('month');
   const nextMonthStart = monthStart.plus({ months: 1 });
-  const historyStart = todayStart.minus({ months: config.shopify.historyMonths }).startOf('day');
+  // Keep this aligned with computeMonthMetrics so today's target matches the
+  // same-day value inside /v1/month days[].
+  const historyStart = monthStart.minus({ months: config.shopify.historyMonths }).startOf('month');
   const monthKey = monthStart.toFormat('yyyy-LL');
   const monthGoal = await getMonthGoal(monthKey);
 
