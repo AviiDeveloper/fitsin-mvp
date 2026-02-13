@@ -165,7 +165,11 @@ struct TodayView: View {
     }
 
     private func kpiCard(data: TodayMetrics) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        let isOver = data.remaining < 0
+        let remainingTitle = isOver ? "Over by" : "Remaining"
+        let remainingAmount = isOver ? abs(data.remaining) : data.remaining
+
+        return VStack(alignment: .leading, spacing: 10) {
             Text("Numbers")
                 .sectionHeaderStyle()
 
@@ -176,9 +180,9 @@ struct TodayView: View {
                     tone: isSundayToday ? BrandTheme.danger : BrandTheme.ink
                 )
                 StatTile(
-                    title: "Remaining",
-                    value: isSundayToday ? "Closed" : (gbp.string(from: NSNumber(value: data.remaining)) ?? "£0"),
-                    tone: isSundayToday ? BrandTheme.danger : (data.remaining <= 0 ? BrandTheme.success : BrandTheme.accent)
+                    title: remainingTitle,
+                    value: isSundayToday ? "Closed" : (gbp.string(from: NSNumber(value: remainingAmount)) ?? "£0"),
+                    tone: isSundayToday ? BrandTheme.danger : (isOver ? BrandTheme.success : BrandTheme.accent)
                 )
             }
 

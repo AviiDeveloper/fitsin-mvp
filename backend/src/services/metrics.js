@@ -110,7 +110,8 @@ export async function computeTodayMetrics() {
   const todayKey = todayStart.toFormat('yyyy-LL-dd');
   const actual = round2(salesMap.get(todayKey) || 0);
   const target = round2(smartTargets.get(todayKey) || 0);
-  const remaining = round2(Math.max(target - actual, 0));
+  // Keep remaining signed so over-performance is visible as a negative value.
+  const remaining = round2(target - actual);
   const pct = target > 0 ? round2((actual / target) * 100) : 0;
 
   return {

@@ -51,16 +51,38 @@ struct DaySalesView: View {
                             .vintageCard()
                         } else {
                             ForEach(payload.items) { item in
+                                let itemNames = splitItemNames(item.description)
+                                let multiOrder = isMultiOrder(item: item, itemNames: itemNames)
+                                let previewNames = Array(itemNames.prefix(3))
+                                let hiddenCount = max(itemNames.count - previewNames.count, 0)
+
                                 VStack(alignment: .leading, spacing: 6) {
                                     HStack(alignment: .top) {
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text(formatTime(item.sold_at))
                                                 .font(.caption.weight(.semibold))
                                                 .foregroundStyle(BrandTheme.inkSoft)
-                                            Text(item.description)
-                                                .font(.subheadline.weight(.semibold))
-                                                .foregroundStyle(BrandTheme.ink)
-                                                .fixedSize(horizontal: false, vertical: true)
+
+                                            if previewNames.isEmpty {
+                                                Text(item.description)
+                                                    .font(.subheadline.weight(.semibold))
+                                                    .foregroundStyle(BrandTheme.ink)
+                                                    .fixedSize(horizontal: false, vertical: true)
+                                            } else {
+                                                VStack(alignment: .leading, spacing: 3) {
+                                                    ForEach(previewNames, id: \.self) { name in
+                                                        Text("• \(name)")
+                                                            .font(.subheadline.weight(.semibold))
+                                                            .foregroundStyle(BrandTheme.ink)
+                                                            .fixedSize(horizontal: false, vertical: true)
+                                                    }
+                                                    if hiddenCount > 0 {
+                                                        Text("+\(hiddenCount) more item\(hiddenCount == 1 ? "" : "s")")
+                                                            .font(.caption)
+                                                            .foregroundStyle(BrandTheme.inkSoft)
+                                                    }
+                                                }
+                                            }
                                         }
                                         Spacer()
                                         VStack(alignment: .trailing, spacing: 2) {
@@ -77,6 +99,9 @@ struct DaySalesView: View {
 
                                     HStack(spacing: 6) {
                                         StatusPill(text: (item.kind == "manual" ? "MANUAL" : "SHOPIFY"), tone: item.kind == "manual" ? BrandTheme.success : BrandTheme.accent)
+                                        if multiOrder {
+                                            StatusPill(text: "MULTI-ORDER", tone: BrandTheme.inkSoft)
+                                        }
                                         if let orderName = item.order_name, !orderName.isEmpty {
                                             Text(orderName)
                                                 .font(.caption)
@@ -118,5 +143,17 @@ struct DaySalesView: View {
             return soldAtFormatter.string(from: date)
         }
         return "--:--"
+    }
+
+    private func splitItemNames(_ description: String) -> [String] {
+        description
+            .components(separatedBy: " • ")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    private func isMultiOrder(item: DaySaleItem, itemNames: [String]) -> Bool {
+        if item.kind != "shopify" { return false }
+        return itemNames.count > 1 || item.quantity > 1
     }
 }
