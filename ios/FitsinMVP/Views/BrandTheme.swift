@@ -2,15 +2,15 @@ import SwiftUI
 
 enum BrandTheme {
     static let paper = Color(red: 0.95, green: 0.95, blue: 0.94)
-    static let paperSoft = Color(red: 0.90, green: 0.90, blue: 0.88)
-    static let ink = Color(red: 0.09, green: 0.09, blue: 0.10)
-    static let inkSoft = Color(red: 0.39, green: 0.38, blue: 0.40)
-    static let accent = Color(red: 0.21, green: 0.37, blue: 0.52)
-    static let success = Color(red: 0.14, green: 0.49, blue: 0.31)
-    static let danger = Color(red: 0.74, green: 0.21, blue: 0.20)
-    static let surface = Color.white.opacity(0.84)
-    static let surfaceStrong = Color.white.opacity(0.96)
-    static let outline = Color.black.opacity(0.09)
+    static let paperSoft = Color(red: 0.92, green: 0.92, blue: 0.91)
+    static let ink = Color(red: 0.10, green: 0.11, blue: 0.12)
+    static let inkSoft = Color(red: 0.38, green: 0.39, blue: 0.40)
+    static let accent = Color(red: 0.18, green: 0.36, blue: 0.53)
+    static let success = Color(red: 0.16, green: 0.47, blue: 0.30)
+    static let danger = Color(red: 0.74, green: 0.20, blue: 0.20)
+    static let surface = Color.white.opacity(0.76)
+    static let surfaceStrong = Color.white.opacity(0.92)
+    static let outline = Color.black.opacity(0.10)
     static let divider = Color.black.opacity(0.08)
 }
 
@@ -19,14 +19,14 @@ struct VintageCard: ViewModifier {
         content
             .padding(16)
             .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(BrandTheme.surface)
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(BrandTheme.surfaceStrong)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: 18)
                     .stroke(BrandTheme.outline, lineWidth: 1)
             )
-            .shadow(color: Color.black.opacity(0.08), radius: 18, x: 0, y: 10)
+            .shadow(color: Color.black.opacity(0.06), radius: 14, x: 0, y: 8)
     }
 }
 
@@ -40,43 +40,31 @@ struct DashboardBackground: View {
     var body: some View {
         LinearGradient(
             colors: [BrandTheme.paper, BrandTheme.paperSoft],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
+            startPoint: .top,
+            endPoint: .bottom
         )
         .overlay(
-            ZStack {
-                RadialGradient(
-                    colors: [
-                        BrandTheme.accent.opacity(0.09),
-                        .clear
-                    ],
-                    center: .topTrailing,
-                    startRadius: 20,
-                    endRadius: 420
-                )
-                RadialGradient(
-                    colors: [
-                        BrandTheme.ink.opacity(0.03),
-                        .clear
-                    ],
-                    center: .bottomLeading,
-                    startRadius: 20,
-                    endRadius: 360
-                )
+            VStack(spacing: 0) {
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            colors: [BrandTheme.ink.opacity(0.06), .clear],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .frame(height: 140)
+                Spacer(minLength: 0)
             }
+            .ignoresSafeArea()
         )
         .overlay(
-            Rectangle()
-                .stroke(
-                    LinearGradient(
-                        colors: [BrandTheme.divider.opacity(0.45), .clear, BrandTheme.divider.opacity(0.45)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 0.5
-                )
-                .blendMode(.overlay)
-                .padding(1)
+            RadialGradient(
+                colors: [BrandTheme.accent.opacity(0.06), .clear],
+                center: .topTrailing,
+                startRadius: 12,
+                endRadius: 420
+            )
         )
         .ignoresSafeArea()
     }
@@ -88,7 +76,8 @@ struct StatusPill: View {
 
     var body: some View {
         Text(text)
-            .font(.caption.weight(.bold))
+            .font(.system(size: 11, weight: .semibold, design: .rounded))
+            .tracking(0.35)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
             .background(
@@ -112,7 +101,7 @@ struct DashboardSection<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .sectionHeaderStyle()
                 if let subtitle, !subtitle.isEmpty {
@@ -138,16 +127,16 @@ struct StatTile: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(BrandTheme.inkSoft)
             Text(value)
-                .font(.title3.weight(.bold))
+                .font(.system(size: 21, weight: .bold, design: .rounded))
                 .foregroundStyle(tone)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(0.75)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(BrandTheme.surfaceStrong)
+                .fill(BrandTheme.surface)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
@@ -182,7 +171,7 @@ struct InlineNotice: View {
 extension View {
     func sectionHeaderStyle() -> some View {
         self
-            .font(.headline.weight(.semibold))
+            .font(.system(size: 18, weight: .semibold, design: .rounded))
             .foregroundStyle(BrandTheme.ink)
     }
 }

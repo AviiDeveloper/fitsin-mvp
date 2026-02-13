@@ -107,13 +107,14 @@ struct TodayView: View {
         let progress = isSundayToday ? 0 : min(max(data.pct / 100.0, 0), 1)
 
         return VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top) {
+            HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Daily Sales")
+                    Text("TODAY")
                         .font(.caption.weight(.semibold))
+                        .tracking(1)
                         .foregroundStyle(BrandTheme.inkSoft)
                     Text(isSundayToday ? "Closed" : (gbp.string(from: NSNumber(value: data.actual_today)) ?? "£0"))
-                        .font(.system(size: 42, weight: .bold, design: .rounded))
+                        .font(.system(size: 44, weight: .black, design: .rounded))
                         .foregroundStyle(isSundayToday ? BrandTheme.danger : BrandTheme.ink)
                 }
                 Spacer()
@@ -123,24 +124,27 @@ struct TodayView: View {
                 )
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(BrandTheme.ink.opacity(0.08))
-                        .frame(height: 12)
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [BrandTheme.accent, BrandTheme.accent.opacity(0.65)],
-                                startPoint: .leading,
-                                endPoint: .trailing
+            VStack(alignment: .leading, spacing: 8) {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(BrandTheme.ink.opacity(0.08))
+                            .frame(height: 12)
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: [BrandTheme.accent, BrandTheme.accent.opacity(0.68)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
                             )
-                        )
-                        .frame(width: max(6, animatedProgress * 280), height: 12)
+                            .frame(width: max(8, geo.size.width * animatedProgress), height: 12)
+                    }
                 }
+                .frame(height: 12)
                 HStack {
                     Text(isSundayToday ? "Store closed today" : "\(Int(data.pct))% of daily target")
-                        .font(.subheadline.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                         .foregroundStyle(BrandTheme.inkSoft)
                     Spacer()
                     if !isSundayToday {
@@ -153,16 +157,6 @@ struct TodayView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .vintageCard()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(
-                    LinearGradient(
-                        colors: [BrandTheme.surfaceStrong, BrandTheme.surface],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-        )
         .onAppear {
             animatedProgress = 0
             withAnimation(.easeOut(duration: 0.75)) {

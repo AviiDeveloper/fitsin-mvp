@@ -48,11 +48,12 @@ struct EventsView: View {
     private var headerCard: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Store Calendar")
+                Text("CALENDAR")
                     .font(.caption.weight(.semibold))
+                    .tracking(1)
                     .foregroundStyle(BrandTheme.inkSoft)
                 Text("\(vm.events.count)")
-                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                    .font(.system(size: 42, weight: .black, design: .rounded))
                     .foregroundStyle(BrandTheme.ink)
                 Text("Upcoming items")
                     .font(.subheadline)
@@ -63,16 +64,6 @@ struct EventsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .vintageCard()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(
-                    LinearGradient(
-                        colors: [BrandTheme.surfaceStrong, BrandTheme.surface],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-        )
     }
 
     private var emptyState: some View {
@@ -94,10 +85,11 @@ struct EventsView: View {
                 NavigationLink {
                     EventDetailView(eventId: event.id, fallbackEvent: event)
                 } label: {
-                    HStack(alignment: .center, spacing: 10) {
-                        VStack(alignment: .leading, spacing: 2) {
+                    HStack(alignment: .center, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 3) {
                             Text(formattedDate(event.date))
-                                .font(.caption.weight(.semibold))
+                                .font(.caption.weight(.bold))
+                                .tracking(0.4)
                                 .foregroundStyle(BrandTheme.inkSoft)
                             Text(event.title.isEmpty ? "Untitled Event" : event.title)
                                 .font(.subheadline.weight(.semibold))
@@ -115,10 +107,11 @@ struct EventsView: View {
                             .font(.caption.weight(.bold))
                             .foregroundStyle(BrandTheme.inkSoft)
                     }
-                    .padding(12)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 13)
                     .background(
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(BrandTheme.surfaceStrong)
+                            .fill(BrandTheme.surface)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)

@@ -116,11 +116,12 @@ struct MonthView: View {
         return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Month Overview")
+                    Text("THIS MONTH")
                         .font(.caption.weight(.semibold))
+                        .tracking(1)
                         .foregroundStyle(BrandTheme.inkSoft)
                     Text(gbp.string(from: NSNumber(value: data.mtd_actual)) ?? "£0")
-                        .font(.system(size: 40, weight: .bold, design: .rounded))
+                        .font(.system(size: 42, weight: .black, design: .rounded))
                         .foregroundStyle(BrandTheme.ink)
                 }
                 Spacer()
@@ -158,16 +159,6 @@ struct MonthView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .vintageCard()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(
-                    LinearGradient(
-                        colors: [BrandTheme.surfaceStrong, BrandTheme.surface],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-        )
     }
 
     private func totalsGrid(data: MonthMetrics) -> some View {

@@ -74,6 +74,10 @@ struct EventDetailView: View {
 
     private var headerCard: some View {
         VStack(alignment: .leading, spacing: 12) {
+            Text("EVENT")
+                .font(.caption.weight(.semibold))
+                .tracking(1)
+                .foregroundStyle(BrandTheme.inkSoft)
             Text(event.title.isEmpty ? "UNTITLED" : event.title.uppercased())
                 .font(.system(size: 30, weight: .black, design: .rounded))
                 .foregroundStyle(BrandTheme.ink)
@@ -83,8 +87,8 @@ struct EventDetailView: View {
                 if !vm.typeDraft.isEmpty {
                     StatusPill(text: vm.typeDraft.uppercased(), tone: BrandTheme.accent)
                 }
-                if let firstTag = event.tags?.first, !firstTag.isEmpty {
-                    StatusPill(text: firstTag.uppercased(), tone: BrandTheme.inkSoft)
+                if let tags = event.tags, !tags.isEmpty {
+                    StatusPill(text: "\(tags.count) tags", tone: BrandTheme.inkSoft)
                 }
             }
 
