@@ -79,6 +79,8 @@ async function fetchOrdersWithLineItemsBetween(startIso, endIso) {
             createdAt
             processedAt
             currentTotalPriceSet { shopMoney { amount currencyCode } }
+            currentSubtotalPriceSet { shopMoney { amount currencyCode } }
+            currentTotalTaxSet { shopMoney { amount currencyCode } }
             lineItems(first: 100) {
               edges {
                 node {
@@ -199,23 +201,36 @@ export async function fetchDailySalesItems(dateKey, timezone) {
   for (const order of orders) {
     const soldAt = orderSaleTimestamp(order);
     if (!soldAt) continue;
+    if (toDateKey(soldAt, timezone) !== dateKey) continue;
     const lineItems = Array.isArray(order.lineItems?.edges) ? order.lineItems.edges : [];
 
-    for (const edge of lineItems) {
-      const line = edge?.node;
-      if (!line) continue;
+    const names = lineItems
+      .map((edge) => edge?.node?.name)
+      .filter(Boolean);
+    const totalQty = lineItems.reduce((sum, edge) => sum + Number(edge?.node?.quantity || 0), 0);
 
-      items.push({
-        id: `shopify:${order.id}:${line.id}`,
-        kind: 'shopify',
-        sold_at: soldAt,
-        description: line.name || 'Item',
-        quantity: Number(line.quantity || 1),
-        amount: null,
-        order_name: order.name || null,
-        source: 'shopify'
-      });
+    const total = Number(order.currentTotalPriceSet?.shopMoney?.amount || 0);
+    const subtotal = Number(order.currentSubtotalPriceSet?.shopMoney?.amount || 0);
+    const tax = Number(order.currentTotalTaxSet?.shopMoney?.amount || 0);
+    let amount = total;
+    if (config.shopify.netSalesMode === 'subtotal_ex_tax_ship') {
+      amount = subtotal > 0 ? subtotal : Math.max(total - tax, 0);
     }
+
+    const description = names.length
+      ? names.slice(0, 4).join(' • ')
+      : 'Order';
+
+    items.push({
+      id: `shopify:${order.id}`,
+      kind: 'shopify',
+      sold_at: soldAt,
+      description,
+      quantity: totalQty > 0 ? totalQty : 1,
+      amount,
+      order_name: order.name || null,
+      source: 'shopify'
+    });
   }
 
   items.sort((a, b) => String(b.sold_at).localeCompare(String(a.sold_at)));
