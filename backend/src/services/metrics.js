@@ -125,9 +125,17 @@ export async function computeTodayMetrics() {
   };
 }
 
-export async function computeMonthMetrics() {
+export async function computeMonthMetrics(monthKeyInput = null) {
   const now = DateTime.now().setZone(config.timezone);
-  const monthStart = now.startOf('month');
+  const requestedMonth = monthKeyInput
+    ? DateTime.fromFormat(String(monthKeyInput), 'yyyy-LL', { zone: config.timezone })
+    : null;
+
+  if (monthKeyInput && !requestedMonth?.isValid) {
+    throw new Error('Invalid month format. Expected YYYY-MM.');
+  }
+
+  const monthStart = (requestedMonth && requestedMonth.isValid ? requestedMonth : now).startOf('month');
   const nextMonthStart = monthStart.plus({ months: 1 });
   const historyStart = monthStart.minus({ months: config.shopify.historyMonths }).startOf('month');
   const monthKey = monthStart.toFormat('yyyy-LL');
@@ -151,13 +159,16 @@ export async function computeMonthMetrics() {
   let cursor = monthStart;
   let mtdActual = 0;
   let mtdTarget = 0;
+  const periodEnd = monthStart.hasSame(now, 'month')
+    ? now.endOf('day')
+    : nextMonthStart.minus({ milliseconds: 1 });
 
   while (cursor < nextMonthStart) {
     const dateKey = cursor.toFormat('yyyy-LL-dd');
     const actual = round2(salesMap.get(dateKey) || 0);
     const target = round2(smartTargets.get(dateKey) || 0);
 
-    if (cursor <= now.endOf('day')) {
+    if (cursor <= periodEnd) {
       mtdActual += actual;
       mtdTarget += target;
     }
@@ -172,6 +183,7 @@ export async function computeMonthMetrics() {
   }
 
   return {
+    month: monthKey,
     month_goal: monthGoal,
     mtd_actual: round2(mtdActual),
     mtd_target: round2(mtdTarget),

@@ -97,9 +97,15 @@ app.get('/v1/today', async (_req, res) => {
   }
 });
 
-app.get('/v1/month', async (_req, res) => {
+app.get('/v1/month', async (req, res) => {
   try {
-    const { payload, stale } = await cached('month', () => computeMonthMetrics());
+    const month = typeof req.query.month === 'string' ? req.query.month.trim() : '';
+    if (month && !/^\d{4}-\d{2}$/.test(month)) {
+      return res.status(400).json({ error: 'Invalid month format. Expected YYYY-MM.' });
+    }
+
+    const cacheKey = month ? `month:${month}` : 'month:current';
+    const { payload, stale } = await cached(cacheKey, () => computeMonthMetrics(month || null));
     return res.json({
       ...payload,
       data_delayed: Boolean(stale),
@@ -233,7 +239,7 @@ app.put('/v1/month-goal', async (req, res) => {
     const goal = rawGoal === null ? null : Number(rawGoal);
     const savedGoal = await setMonthGoal(month, goal);
     cache.delete('today');
-    cache.delete('month');
+    cache.clear();
     return res.json({ month, goal: savedGoal, updated_at: new Date().toISOString() });
   } catch (error) {
     return res.status(400).json({ error: 'Failed to save month goal', detail: error.message });
@@ -263,7 +269,7 @@ app.post('/v1/manual-entries', async (req, res) => {
   try {
     const entry = await createManualEntry(req.body, config.timezone);
     cache.delete('today');
-    cache.delete('month');
+    cache.clear();
     cache.delete(`day:${entry.date}`);
     return res.status(201).json(entry);
   } catch (error) {
@@ -275,7 +281,7 @@ app.delete('/v1/manual-entries/:id', async (req, res) => {
   try {
     const deleted = await deleteManualEntry(req.params.id);
     cache.delete('today');
-    cache.delete('month');
+    cache.clear();
     if (deleted?.date) cache.delete(`day:${deleted.date}`);
     return res.status(204).send();
   } catch (error) {
