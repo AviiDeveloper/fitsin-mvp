@@ -61,7 +61,7 @@ struct MonthHistoryView: View {
                 if selectedMode == .months {
                     await vm.loadPastMonths()
                 } else {
-                    await vm.loadYear(vm.selectedYear)
+                    await vm.loadYear(vm.selectedYear, forceRefresh: true)
                 }
             }
         }
@@ -86,7 +86,7 @@ struct MonthHistoryView: View {
                 }
                 .pickerStyle(.segmented)
                 .onChange(of: vm.selectedYear) { _, newYear in
-                    Task { await vm.loadYear(newYear) }
+                    Task { await vm.loadYear(newYear, forceRefresh: false) }
                 }
             }
         }

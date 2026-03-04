@@ -22,6 +22,7 @@ final class MonthHistoryViewModel: ObservableObject {
     @Published var errorText: String?
 
     private let timezone = TimeZone(identifier: "Europe/London") ?? .current
+    private var yearMemoryCache: [Int: [HistoricalMonthSummary]] = [:]
 
     init() {
         var calendar = Calendar(identifier: .gregorian)
@@ -40,16 +41,7 @@ final class MonthHistoryViewModel: ObservableObject {
         defer { isLoadingPastMonths = false }
 
         let keys = recentMonthKeys(count: count)
-        var summaries = [HistoricalMonthSummary]()
-        var hadFailures = false
-
-        for key in keys {
-            if let summary = await loadSummary(for: key) {
-                summaries.append(summary)
-            } else {
-                hadFailures = true
-            }
-        }
+        let (summaries, hadFailures) = await loadSummaries(for: keys)
 
         pastMonths = summaries
         if summaries.isEmpty {
@@ -75,21 +67,47 @@ final class MonthHistoryViewModel: ObservableObject {
         }
     }
 
-    func loadYear(_ year: Int) async {
+    private func loadSummaries(for keys: [String]) async -> ([HistoricalMonthSummary], Bool) {
+        if keys.isEmpty { return ([], false) }
+
+        var buffer = Array<HistoricalMonthSummary?>(repeating: nil, count: keys.count)
+        var hadFailures = false
+
+        await withTaskGroup(of: (Int, HistoricalMonthSummary?).self) { group in
+            for (index, key) in keys.enumerated() {
+                group.addTask { [self] in
+                    let summary = await loadSummary(for: key)
+                    return (index, summary)
+                }
+            }
+
+            for await (index, summary) in group {
+                if let summary {
+                    buffer[index] = summary
+                } else {
+                    hadFailures = true
+                }
+            }
+        }
+
+        let summaries = buffer.compactMap { $0 }
+        return (summaries, hadFailures)
+    }
+
+    func loadYear(_ year: Int, forceRefresh: Bool = false) async {
+        if let cachedYear = yearMemoryCache[year], !cachedYear.isEmpty {
+            yearMonths = cachedYear
+            if !forceRefresh {
+                errorText = nil
+                return
+            }
+        }
+
         isLoadingYear = true
         defer { isLoadingYear = false }
 
         let keys = monthKeys(for: year)
-        var summaries = [HistoricalMonthSummary]()
-        var hadFailures = false
-
-        for key in keys {
-            if let summary = await loadSummary(for: key) {
-                summaries.append(summary)
-            } else {
-                hadFailures = true
-            }
-        }
+        let (summaries, hadFailures) = await loadSummaries(for: keys)
 
         yearMonths = summaries
         if summaries.isEmpty {
@@ -97,6 +115,7 @@ final class MonthHistoryViewModel: ObservableObject {
             return
         }
 
+        yearMemoryCache[year] = summaries
         errorText = hadFailures
             ? "Some months are showing cached data."
             : nil
