@@ -39,31 +39,39 @@ final class MonthHistoryViewModel: ObservableObject {
         isLoadingPastMonths = true
         defer { isLoadingPastMonths = false }
 
-        do {
-            let keys = recentMonthKeys(count: count)
-            var summaries = [HistoricalMonthSummary]()
-            for key in keys {
-                let metrics = try await APIClient.shared.getMonth(month: key)
-                summaries.append(summary(from: metrics, fallbackMonthKey: key))
-                LocalCache.write(metrics, key: "\(Self.monthCachePrefix)\(key).json")
-            }
-            pastMonths = summaries
-            if errorText == "Showing cached month history." {
-                errorText = nil
-            }
-        } catch {
-            var cached = [HistoricalMonthSummary]()
-            for key in recentMonthKeys(count: count) {
-                if let metrics: MonthMetrics = LocalCache.read(MonthMetrics.self, key: "\(Self.monthCachePrefix)\(key).json") {
-                    cached.append(summary(from: metrics, fallbackMonthKey: key))
-                }
-            }
-            if !cached.isEmpty {
-                pastMonths = cached
-                errorText = "Showing cached month history."
+        let keys = recentMonthKeys(count: count)
+        var summaries = [HistoricalMonthSummary]()
+        var hadFailures = false
+
+        for key in keys {
+            if let summary = await loadSummary(for: key) {
+                summaries.append(summary)
             } else {
-                errorText = "Could not load month history."
+                hadFailures = true
             }
+        }
+
+        pastMonths = summaries
+        if summaries.isEmpty {
+            errorText = "Could not load month history."
+            return
+        }
+
+        errorText = hadFailures
+            ? "Some months are showing cached data."
+            : nil
+    }
+
+    private func loadSummary(for key: String) async -> HistoricalMonthSummary? {
+        do {
+            let metrics = try await APIClient.shared.getMonth(month: key)
+            LocalCache.write(metrics, key: "\(Self.monthCachePrefix)\(key).json")
+            return summary(from: metrics, fallbackMonthKey: key)
+        } catch {
+            if let cached: MonthMetrics = LocalCache.read(MonthMetrics.self, key: "\(Self.monthCachePrefix)\(key).json") {
+                return summary(from: cached, fallbackMonthKey: key)
+            }
+            return nil
         }
     }
 
@@ -71,32 +79,27 @@ final class MonthHistoryViewModel: ObservableObject {
         isLoadingYear = true
         defer { isLoadingYear = false }
 
-        do {
-            let keys = monthKeys(for: year)
-            var summaries = [HistoricalMonthSummary]()
-            for key in keys {
-                let metrics = try await APIClient.shared.getMonth(month: key)
-                summaries.append(summary(from: metrics, fallbackMonthKey: key))
-                LocalCache.write(metrics, key: "\(Self.monthCachePrefix)\(key).json")
-            }
-            yearMonths = summaries
-            if errorText == "Showing cached year history." {
-                errorText = nil
-            }
-        } catch {
-            var cached = [HistoricalMonthSummary]()
-            for key in monthKeys(for: year) {
-                if let metrics: MonthMetrics = LocalCache.read(MonthMetrics.self, key: "\(Self.monthCachePrefix)\(key).json") {
-                    cached.append(summary(from: metrics, fallbackMonthKey: key))
-                }
-            }
-            if !cached.isEmpty {
-                yearMonths = cached
-                errorText = "Showing cached year history."
+        let keys = monthKeys(for: year)
+        var summaries = [HistoricalMonthSummary]()
+        var hadFailures = false
+
+        for key in keys {
+            if let summary = await loadSummary(for: key) {
+                summaries.append(summary)
             } else {
-                errorText = "Could not load year history."
+                hadFailures = true
             }
         }
+
+        yearMonths = summaries
+        if summaries.isEmpty {
+            errorText = "Could not load year history."
+            return
+        }
+
+        errorText = hadFailures
+            ? "Some months are showing cached data."
+            : nil
     }
 
     var availableYears: [Int] {
@@ -107,9 +110,8 @@ final class MonthHistoryViewModel: ObservableObject {
     }
 
     private func summary(from metrics: MonthMetrics, fallbackMonthKey: String) -> HistoricalMonthSummary {
-        let monthKey = metrics.month ?? fallbackMonthKey
         return HistoricalMonthSummary(
-            monthKey: monthKey,
+            monthKey: fallbackMonthKey,
             actual: metrics.mtd_actual,
             target: metrics.mtd_target,
             gap: metrics.ahead_behind,
