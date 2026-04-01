@@ -240,7 +240,7 @@ export async function fetchDailySalesItems(dateKey, timezone) {
 
 // MARK: - Seller Config
 
-const SELLER_PREFIXES = ['TA', 'AA', 'HW'];
+const SELLER_PREFIXES = ['TA', 'AA'];
 const COMMISSION_RATE = 0.15;
 
 function parseSellerPrefix(itemName) {
