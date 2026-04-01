@@ -1,8 +1,8 @@
 import SwiftUI
 
-struct AccessCodeView: View {
+struct UserNameView: View {
     @EnvironmentObject var session: AppSession
-    @State private var code = ""
+    @State private var name = ""
     @State private var animateIn = false
 
     var body: some View {
@@ -19,20 +19,21 @@ struct AccessCodeView: View {
 
                     VStack(alignment: .leading, spacing: 14) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Staff Dashboard")
+                            Text("Who's using the app?")
                                 .font(.title2.bold())
                                 .foregroundStyle(BrandTheme.ink)
-                            Text("Enter the shared team code to continue")
+                            Text("Enter your name so we know who you are")
                                 .font(.subheadline)
                                 .foregroundStyle(BrandTheme.inkSoft)
                         }
 
-                        SecureField("Access code", text: $code)
-                            .textInputAutocapitalization(.never)
+                        TextField("Your name", text: $name)
+                            .textInputAutocapitalization(.words)
+                            .autocorrectionDisabled()
                             .textFieldStyle(FitsinInputStyle())
 
                         Button {
-                            session.save(code: code)
+                            session.saveName(name)
                         } label: {
                             Text("Continue")
                                 .font(.subheadline.weight(.semibold))
@@ -40,11 +41,11 @@ struct AccessCodeView: View {
                                 .padding(.vertical, 13)
                                 .background(
                                     RoundedRectangle(cornerRadius: 14)
-                                        .fill(code.isEmpty ? BrandTheme.ink.opacity(0.3) : BrandTheme.ink)
+                                        .fill(trimmedName.isEmpty ? BrandTheme.ink.opacity(0.3) : BrandTheme.ink)
                                 )
                                 .foregroundStyle(.white)
                         }
-                        .disabled(code.isEmpty)
+                        .disabled(trimmedName.isEmpty)
                     }
                     .vintageCard()
                 }
@@ -59,5 +60,9 @@ struct AccessCodeView: View {
                 }
             }
         }
+    }
+
+    private var trimmedName: String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

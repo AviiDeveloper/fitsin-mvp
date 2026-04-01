@@ -16,13 +16,23 @@ final class TodayViewModel: ObservableObject {
     @Published var isSavingManualEntry = false
     private var refreshTask: Task<Void, Never>?
 
-    private let dateFormatter: DateFormatter = {
+    private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
         f.timeZone = TimeZone(identifier: "Europe/London")
         f.locale = Locale(identifier: "en_GB")
         return f
     }()
+
+    func loadCached() {
+        guard data == nil else { return }
+        if let cached: TodayMetrics = LocalCache.read(TodayMetrics.self, key: "today.json") {
+            data = cached
+            if let cachedMonth: MonthMetrics = LocalCache.read(MonthMetrics.self, key: "month.json") {
+                weekAhead = makeWeekAhead(from: cachedMonth.days)
+            }
+        }
+    }
 
     func load() async {
         do {
@@ -47,15 +57,15 @@ final class TodayViewModel: ObservableObject {
                 errorText = "No access code saved."
                 return
             }
-            if let cached: TodayMetrics = LocalCache.read(TodayMetrics.self, key: "today.json") {
-                data = cached
-                if let cachedMonth: MonthMetrics = LocalCache.read(MonthMetrics.self, key: "month.json") {
-                    weekAhead = makeWeekAhead(from: cachedMonth.days)
+            if data == nil {
+                if let cached: TodayMetrics = LocalCache.read(TodayMetrics.self, key: "today.json") {
+                    data = cached
+                    if let cachedMonth: MonthMetrics = LocalCache.read(MonthMetrics.self, key: "month.json") {
+                        weekAhead = makeWeekAhead(from: cachedMonth.days)
+                    }
                 }
-                errorText = "Showing cached data (offline or server unavailable)."
-            } else {
-                errorText = "Could not load today metrics."
             }
+            errorText = data != nil ? "Showing cached data (offline or server unavailable)." : "Could not load today metrics."
         }
     }
 
@@ -89,7 +99,7 @@ final class TodayViewModel: ObservableObject {
         guard let end = cal.date(byAdding: .day, value: 6, to: start) else { return [] }
 
         return days.compactMap { day in
-            guard let date = dateFormatter.date(from: day.date) else { return nil }
+            guard let date = Self.dateFormatter.date(from: day.date) else { return nil }
             let normalized = cal.startOfDay(for: date)
             guard normalized >= start && normalized <= end else { return nil }
             return WeekProjection(id: day.date, date: normalized, actual: day.actual, target: day.target)
@@ -97,7 +107,7 @@ final class TodayViewModel: ObservableObject {
         .sorted { $0.date < $1.date }
     }
 
-    func startAutoRefresh(intervalSeconds: UInt64 = 15) {
+    func startAutoRefresh(intervalSeconds: UInt64 = 60) {
         stopAutoRefresh()
         refreshTask = Task { [weak self] in
             guard let self else { return }

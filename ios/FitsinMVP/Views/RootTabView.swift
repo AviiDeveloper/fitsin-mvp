@@ -2,10 +2,16 @@ import SwiftUI
 import UIKit
 
 struct RootTabView: View {
+    @StateObject private var todayVM = TodayViewModel()
+    @StateObject private var monthVM = MonthViewModel()
+    @StateObject private var eventsVM = EventsViewModel()
+    @StateObject private var rotaVM = RotaViewModel()
+    @Environment(\.scenePhase) private var scenePhase
+
     init() {
         let appearance = UITabBarAppearance()
         appearance.configureWithOpaqueBackground()
-        appearance.backgroundColor = UIColor(BrandTheme.paper).withAlphaComponent(0.98)
+        appearance.backgroundColor = UIColor(BrandTheme.paper)
         appearance.shadowColor = UIColor(BrandTheme.outline)
         appearance.stackedLayoutAppearance.selected.iconColor = UIColor(BrandTheme.ink)
         appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
@@ -23,17 +29,17 @@ struct RootTabView: View {
 
     var body: some View {
         TabView {
-            TodayView()
+            TodayView(vm: todayVM, rotaVM: rotaVM)
                 .tabItem {
                     Label("Today", systemImage: "chart.line.uptrend.xyaxis")
                 }
 
-            MonthView()
+            MonthView(vm: monthVM)
                 .tabItem {
                     Label("Month", systemImage: "calendar")
                 }
 
-            EventsView()
+            EventsView(vm: eventsVM)
                 .tabItem {
                     Label("Events", systemImage: "list.bullet.rectangle")
                 }
@@ -44,5 +50,16 @@ struct RootTabView: View {
                 }
         }
         .tint(BrandTheme.ink)
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                Task {
+                    async let t: Void = todayVM.load()
+                    async let m: Void = monthVM.load()
+                    async let e: Void = eventsVM.load()
+                    async let r: Void = rotaVM.load()
+                    _ = await (t, m, e, r)
+                }
+            }
+        }
     }
 }

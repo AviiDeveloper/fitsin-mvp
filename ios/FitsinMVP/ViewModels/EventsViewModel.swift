@@ -5,6 +5,13 @@ final class EventsViewModel: ObservableObject {
     @Published var events: [EventItem] = []
     @Published var errorText: String?
 
+    func loadCached() {
+        guard events.isEmpty else { return }
+        if let cached: EventsResponse = LocalCache.read(EventsResponse.self, key: "events.json") {
+            events = cached.events
+        }
+    }
+
     func load() async {
         do {
             let payload = try await APIClient.shared.getEvents()
@@ -20,12 +27,12 @@ final class EventsViewModel: ObservableObject {
                 errorText = "No access code saved."
                 return
             }
-            if let cached: EventsResponse = LocalCache.read(EventsResponse.self, key: "events.json") {
-                events = cached.events
-                errorText = "Showing cached events."
-            } else {
-                errorText = "Could not load events."
+            if events.isEmpty {
+                if let cached: EventsResponse = LocalCache.read(EventsResponse.self, key: "events.json") {
+                    events = cached.events
+                }
             }
+            errorText = events.isEmpty ? "Could not load events." : "Showing cached events."
         }
     }
 }

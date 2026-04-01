@@ -1,29 +1,40 @@
 import SwiftUI
 
 struct TodayView: View {
-    @StateObject private var vm = TodayViewModel()
+    @ObservedObject var vm: TodayViewModel
+    @ObservedObject var rotaVM: RotaViewModel
+    @EnvironmentObject var session: AppSession
     @State private var animateIn = false
     @State private var animatedProgress = 0.0
     @State private var selectedSource: ManualSource = .cash
     @State private var manualAmount = ""
     @State private var manualNote = ""
     @State private var manualDescription = ""
+    @State private var showManualEntry = false
 
-    private var gbp: NumberFormatter {
+    private static let gbpFormatter: NumberFormatter = {
         let f = NumberFormatter()
         f.numberStyle = .currency
         f.currencyCode = "GBP"
         f.locale = Locale(identifier: "en_GB")
         return f
-    }
+    }()
 
-    private var dayLabel: DateFormatter {
+    private static let dayFormatter: DateFormatter = {
         let f = DateFormatter()
-        f.dateFormat = "EEE d"
+        f.dateFormat = "EEE"
         f.timeZone = TimeZone(identifier: "Europe/London")
         f.locale = Locale(identifier: "en_GB")
         return f
-    }
+    }()
+
+    private static let dayNumFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "d"
+        f.timeZone = TimeZone(identifier: "Europe/London")
+        f.locale = Locale(identifier: "en_GB")
+        return f
+    }()
 
     private var londonCalendar: Calendar {
         var cal = Calendar(identifier: .gregorian)
@@ -38,7 +49,11 @@ struct TodayView: View {
     private var progressTone: Color {
         guard let data = vm.data else { return BrandTheme.accent }
         if isSundayToday { return BrandTheme.danger }
-        return data.pct >= 100 ? BrandTheme.success : BrandTheme.accent
+        return data.pct >= 100 ? BrandTheme.success : BrandTheme.ink
+    }
+
+    private func gbp(_ value: Double) -> String {
+        Self.gbpFormatter.string(from: NSNumber(value: value)) ?? "£0"
     }
 
     var body: some View {
@@ -47,56 +62,35 @@ struct TodayView: View {
                 DashboardBackground()
 
                 ScrollView {
-                    VStack(spacing: 14) {
+                    VStack(spacing: 0) {
                         if let data = vm.data {
-                            primaryCard(data: data)
-                                .opacity(animateIn ? 1 : 0)
-                                .offset(y: animateIn ? 0 : 10)
-
-                            kpiCard(data: data)
-                                .opacity(animateIn ? 1 : 0)
-                                .offset(y: animateIn ? 0 : 10)
-
-                            weekCard
-                                .opacity(animateIn ? 1 : 0)
-                                .offset(y: animateIn ? 0 : 10)
-
-                            manualEntryDisclosure
-                                .opacity(animateIn ? 1 : 0)
-                                .offset(y: animateIn ? 0 : 10)
+                            heroSection(data: data)
+                            statsRow(data: data)
+                            weekSection
+                            rotaSection
+                            manualEntrySection
                         } else {
-                            ProgressView("Loading today dashboard...")
-                                .frame(maxWidth: .infinity, alignment: .center)
-                                .vintageCard()
+                            ProgressView()
+                                .frame(maxWidth: .infinity, minHeight: 200)
                         }
 
-                        if let warning = vm.data?.warning, !warning.isEmpty {
-                            InlineNotice(text: warning, tone: BrandTheme.danger, systemImage: "exclamationmark.triangle.fill")
-                                .vintageCard()
-                        }
-
-                        if let error = vm.errorText {
-                            InlineNotice(text: error, tone: BrandTheme.danger, systemImage: "wifi.exclamationmark")
-                                .vintageCard()
-                        }
-
-                        if let manualStatus = vm.manualEntryStatus {
-                            InlineNotice(text: manualStatus, tone: BrandTheme.success, systemImage: "checkmark.circle.fill")
-                                .vintageCard()
-                        }
+                        notices
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                    .opacity(animateIn ? 1 : 0)
+                    .offset(y: animateIn ? 0 : 16)
                 }
                 .refreshable { await vm.load() }
             }
             .task {
-                await vm.load()
+                vm.loadCached()
+                async let loadToday: Void = vm.load()
+                async let loadRota: Void = rotaVM.load()
+                _ = await (loadToday, loadRota)
                 animateIn = false
-                withAnimation(.easeOut(duration: 0.35)) {
+                withAnimation(.easeOut(duration: 0.4)) {
                     animateIn = true
                 }
-                vm.startAutoRefresh(intervalSeconds: 15)
+                vm.startAutoRefresh(intervalSeconds: 60)
             }
             .onDisappear { vm.stopAutoRefresh() }
             .navigationTitle("Today")
@@ -104,56 +98,56 @@ struct TodayView: View {
         }
     }
 
-    private func primaryCard(data: TodayMetrics) -> some View {
-        let progress = isSundayToday ? 0 : min(max(data.pct / 100.0, 0), 1)
+    // MARK: - Hero
 
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("PRIMARY STATUS")
+    private func heroSection(data: TodayMetrics) -> some View {
+        let progress = isSundayToday ? 0.0 : min(max(data.pct / 100.0, 0), 1)
+
+        return VStack(spacing: 8) {
+            Text(isSundayToday ? "CLOSED" : "TODAY'S SALES")
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .tracking(1.5)
+                .foregroundStyle(BrandTheme.inkSoft)
+
+            Text(isSundayToday ? "Sunday" : gbp(data.actual_today))
+                .font(.system(size: 46, weight: .black, design: .rounded))
+                .foregroundStyle(isSundayToday ? BrandTheme.danger : BrandTheme.ink)
+
+            if !isSundayToday {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(BrandTheme.ink.opacity(0.06))
+                            .frame(height: 5)
+                        Capsule()
+                            .fill(progressTone)
+                            .frame(width: max(4, geo.size.width * animatedProgress), height: 5)
+                    }
+                }
+                .frame(height: 5)
+                .padding(.horizontal, 40)
+
+                HStack(spacing: 4) {
+                    Text("\(Int(data.pct))%")
                         .font(.caption.weight(.semibold))
-                        .tracking(1)
+                        .foregroundStyle(BrandTheme.ink)
+                    Text("of target")
+                        .font(.caption)
                         .foregroundStyle(BrandTheme.inkSoft)
-                    Text(isSundayToday ? "Closed" : (gbp.string(from: NSNumber(value: data.actual_today)) ?? "£0"))
-                        .font(.system(size: 44, weight: .black, design: .rounded))
-                        .foregroundStyle(isSundayToday ? BrandTheme.danger : BrandTheme.ink)
-                }
-                Spacer()
-                StatusPill(
-                    text: isSundayToday ? "Sunday" : (data.pct >= 100 ? "Above Target" : "Needs Push"),
-                    tone: progressTone
-                )
-            }
-
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(BrandTheme.ink.opacity(0.08))
-                        .frame(height: 12)
-                    Capsule()
-                        .fill(progressTone)
-                        .frame(width: max(8, geo.size.width * animatedProgress), height: 12)
-                }
-            }
-            .frame(height: 12)
-
-            HStack {
-                Text(isSundayToday ? "Store closed today" : "\(Int(data.pct))% of target reached")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(BrandTheme.inkSoft)
-                Spacer()
-                if !isSundayToday {
-                    Text("Updated \(formatTimestamp(data.updated_at))")
+                    Text("·")
+                        .foregroundStyle(BrandTheme.inkSoft)
+                    Text(formatTimestamp(data.updated_at))
                         .font(.caption)
                         .foregroundStyle(BrandTheme.inkSoft)
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .vintageCard()
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
+        .padding(.horizontal, 20)
         .onAppear {
             animatedProgress = 0
-            withAnimation(.easeOut(duration: 0.6)) {
+            withAnimation(.easeOut(duration: 0.8)) {
                 animatedProgress = progress
             }
         }
@@ -164,120 +158,284 @@ struct TodayView: View {
         }
     }
 
-    private func kpiCard(data: TodayMetrics) -> some View {
+    // MARK: - Stats Row
+
+    private func statsRow(data: TodayMetrics) -> some View {
         let isOver = data.remaining < 0
-        let remainingTitle = isOver ? "Over by" : "Remaining"
-        let remainingAmount = isOver ? abs(data.remaining) : data.remaining
 
-        return VStack(alignment: .leading, spacing: 10) {
-            Text("Numbers")
-                .sectionHeaderStyle()
+        return HStack(spacing: 0) {
+            statItem(
+                label: "TARGET",
+                value: isSundayToday ? "—" : gbp(data.target_today),
+                tone: BrandTheme.ink
+            )
 
-            HStack(spacing: 10) {
-                StatTile(
-                    title: "Target",
-                    value: isSundayToday ? "Closed" : (gbp.string(from: NSNumber(value: data.target_today)) ?? "£0"),
-                    tone: isSundayToday ? BrandTheme.danger : BrandTheme.ink
-                )
-                StatTile(
-                    title: remainingTitle,
-                    value: isSundayToday ? "Closed" : (gbp.string(from: NSNumber(value: remainingAmount)) ?? "£0"),
-                    tone: isSundayToday ? BrandTheme.danger : (isOver ? BrandTheme.success : BrandTheme.accent)
-                )
-            }
+            Divider()
+                .frame(height: 32)
+                .overlay(BrandTheme.divider)
 
-            StatTile(
-                title: "Month Goal",
-                value: gbp.string(from: NSNumber(value: data.month_goal ?? 0)) ?? "Not set",
-                tone: data.month_goal == nil ? BrandTheme.inkSoft : BrandTheme.ink
+            statItem(
+                label: isOver ? "OVER BY" : "REMAINING",
+                value: isSundayToday ? "—" : gbp(isOver ? abs(data.remaining) : data.remaining),
+                tone: isSundayToday ? BrandTheme.inkSoft : (isOver ? BrandTheme.success : BrandTheme.ink)
+            )
+
+            Divider()
+                .frame(height: 32)
+                .overlay(BrandTheme.divider)
+
+            statItem(
+                label: "MONTH GOAL",
+                value: data.month_goal != nil ? gbp(data.month_goal!) : "—",
+                tone: BrandTheme.inkSoft
             )
         }
-        .vintageCard()
+        .padding(.vertical, 18)
+        .background(BrandTheme.surfaceStrong)
+        .overlay(
+            VStack {
+                Divider().overlay(BrandTheme.outline)
+                Spacer()
+                Divider().overlay(BrandTheme.outline)
+            }
+        )
     }
 
-    private var weekCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Next 7 Days")
-                .sectionHeaderStyle()
+    private func statItem(label: String, value: String, tone: Color) -> some View {
+        VStack(spacing: 4) {
+            Text(label)
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .tracking(0.8)
+                .foregroundStyle(BrandTheme.inkSoft)
+            Text(value)
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundStyle(tone)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Week
+
+    private var weekSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("This Week")
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .tracking(0.3)
+                .foregroundStyle(BrandTheme.ink)
+                .padding(.horizontal, 20)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     ForEach(vm.weekAhead) { day in
                         let isSunday = londonCalendar.component(.weekday, from: day.date) == 1
+                        let isToday = londonCalendar.isDateInToday(day.date)
+                        let hitTarget = !isSunday && day.actual >= day.target && day.target > 0
 
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(dayLabel.string(from: day.date).uppercased())
-                                .font(.caption.weight(.bold))
-                                .tracking(0.4)
-                                .foregroundStyle(BrandTheme.inkSoft)
+                        VStack(spacing: 6) {
+                            Text(Self.dayFormatter.string(from: day.date).uppercased())
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .tracking(0.5)
+                                .foregroundStyle(isToday ? BrandTheme.ink : BrandTheme.inkSoft)
+
+                            Text(Self.dayNumFormatter.string(from: day.date))
+                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                                .foregroundStyle(isSunday ? BrandTheme.danger.opacity(0.5) : BrandTheme.ink)
 
                             if isSunday {
-                                Text("Closed")
-                                    .font(.subheadline.weight(.bold))
-                                    .foregroundStyle(BrandTheme.danger)
-                            } else {
-                                Text(gbp.string(from: NSNumber(value: day.target)) ?? "£0")
-                                    .font(.subheadline.weight(.bold))
-                                    .foregroundStyle(BrandTheme.ink)
-                                Text("A: \(gbp.string(from: NSNumber(value: day.actual)) ?? "£0")")
-                                    .font(.caption)
+                                Text("—")
+                                    .font(.caption2)
                                     .foregroundStyle(BrandTheme.inkSoft)
+                            } else {
+                                Text(gbp(day.target))
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(hitTarget ? BrandTheme.success : BrandTheme.inkSoft)
                             }
                         }
-                        .padding(10)
-                        .frame(width: 120, alignment: .leading)
+                        .frame(width: 64)
+                        .padding(.vertical, 12)
                         .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(isSunday ? BrandTheme.danger.opacity(0.08) : BrandTheme.surface)
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(isToday ? BrandTheme.ink.opacity(0.04) : .clear)
                         )
                         .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(BrandTheme.outline, lineWidth: 1)
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(isToday ? BrandTheme.ink.opacity(0.12) : .clear, lineWidth: 1)
                         )
                     }
                 }
+                .padding(.horizontal, 20)
             }
         }
-        .vintageCard()
+        .padding(.top, 16)
     }
 
-    private var manualEntryDisclosure: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            DisclosureGroup {
-                manualEntryForm
-                    .padding(.top, 6)
+    // MARK: - Rota
+
+    private static let rotaDayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE d MMM"
+        f.timeZone = TimeZone(identifier: "Europe/London")
+        f.locale = Locale(identifier: "en_GB")
+        return f
+    }()
+
+    private var rotaSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Who's Opening?")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .tracking(0.3)
+                    .foregroundStyle(BrandTheme.ink)
+                Spacer()
+                Text("Tap to sign up")
+                    .font(.caption)
+                    .foregroundStyle(BrandTheme.inkSoft)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 12)
+
+            VStack(spacing: 0) {
+                ForEach(Array(rotaVM.upcomingDays.enumerated()), id: \.element.key) { index, day in
+                    if index > 0 {
+                        Divider().overlay(BrandTheme.divider).padding(.horizontal, 20)
+                    }
+                    rotaDayRow(date: day.date, key: day.key)
+                }
+            }
+        }
+        .background(BrandTheme.surfaceStrong)
+        .overlay(
+            VStack {
+                Divider().overlay(BrandTheme.outline)
+                Spacer()
+                Divider().overlay(BrandTheme.outline)
+            }
+        )
+        .padding(.top, 16)
+    }
+
+    private func rotaDayRow(date: Date, key: String) -> some View {
+        let people = rotaVM.entries(for: key)
+        let userName = session.userName ?? ""
+        let isMeSignedUp = rotaVM.isSignedUp(for: key, userName: userName)
+        let isToday = londonCalendar.isDateInToday(date)
+
+        return Button {
+            Task { await rotaVM.toggle(dateKey: key, userName: userName) }
+        } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(Self.rotaDayFormatter.string(from: date))
+                        .font(.system(size: 13, weight: isToday ? .bold : .semibold))
+                        .foregroundStyle(BrandTheme.ink)
+                    if isToday {
+                        Text("Today")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(BrandTheme.inkSoft)
+                    }
+                }
+                .frame(width: 90, alignment: .leading)
+
+                if people.isEmpty {
+                    Text("No one yet")
+                        .font(.caption)
+                        .foregroundStyle(BrandTheme.inkSoft.opacity(0.5))
+                } else {
+                    HStack(spacing: 6) {
+                        ForEach(people) { person in
+                            Text(person.name)
+                                .font(.system(size: 12, weight: .semibold))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    Capsule()
+                                        .fill(person.name.lowercased() == userName.lowercased()
+                                              ? BrandTheme.ink
+                                              : BrandTheme.ink.opacity(0.08))
+                                )
+                                .foregroundStyle(person.name.lowercased() == userName.lowercased()
+                                                 ? .white
+                                                 : BrandTheme.ink)
+                        }
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: isMeSignedUp ? "checkmark.circle.fill" : "plus.circle")
+                    .font(.body)
+                    .foregroundStyle(isMeSignedUp ? BrandTheme.success : BrandTheme.inkSoft.opacity(0.4))
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Manual Entry
+
+    private var manualEntrySection: some View {
+        VStack(spacing: 0) {
+            Button {
+                withAnimation(.spring(duration: 0.3)) {
+                    showManualEntry.toggle()
+                }
             } label: {
                 HStack {
-                    Text("Log Non-Shopify Sale")
-                        .sectionHeaderStyle()
+                    Image(systemName: "plus.circle.fill")
+                        .font(.body.weight(.semibold))
+                    Text("Log Sale")
+                        .font(.subheadline.weight(.semibold))
                     Spacer()
                     Text("Vinted / Cash / Other")
                         .font(.caption)
                         .foregroundStyle(BrandTheme.inkSoft)
+                    Image(systemName: showManualEntry ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(BrandTheme.inkSoft)
                 }
+                .foregroundStyle(BrandTheme.ink)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
             }
-            .tint(BrandTheme.ink)
+            .buttonStyle(.plain)
+
+            if showManualEntry {
+                manualEntryForm
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 16)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
-        .vintageCard()
+        .background(BrandTheme.surfaceStrong)
+        .overlay(
+            VStack {
+                Divider().overlay(BrandTheme.outline)
+                Spacer()
+            }
+        )
+        .padding(.top, 16)
     }
 
     private var manualEntryForm: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(ManualSource.allCases) { source in
-                        Button(source.label) {
-                            selectedSource = source
-                        }
-                        .font(.caption.weight(.bold))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 7)
-                        .background(
-                            Capsule()
-                                .fill(selectedSource == source ? BrandTheme.accent.opacity(0.2) : BrandTheme.ink.opacity(0.08))
-                        )
-                        .foregroundStyle(selectedSource == source ? BrandTheme.accent : BrandTheme.inkSoft)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                ForEach(ManualSource.allCases) { source in
+                    Button(source.label) {
+                        selectedSource = source
                     }
+                    .font(.system(size: 12, weight: .bold))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        Capsule()
+                            .fill(selectedSource == source ? BrandTheme.ink : BrandTheme.ink.opacity(0.06))
+                    )
+                    .foregroundStyle(selectedSource == source ? .white : BrandTheme.inkSoft)
                 }
             }
 
@@ -319,16 +477,36 @@ struct TodayView: View {
                         .font(.subheadline.weight(.semibold))
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 11)
+                .padding(.vertical, 13)
                 .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(canSaveManual ? BrandTheme.ink : BrandTheme.ink.opacity(0.35))
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(canSaveManual ? BrandTheme.ink : BrandTheme.ink.opacity(0.3))
                 )
                 .foregroundStyle(.white)
             }
             .disabled(!canSaveManual || vm.isSavingManualEntry)
         }
     }
+
+    // MARK: - Notices
+
+    private var notices: some View {
+        VStack(spacing: 8) {
+            if let warning = vm.data?.warning, !warning.isEmpty {
+                InlineNotice(text: warning, tone: BrandTheme.danger, systemImage: "exclamationmark.triangle.fill")
+            }
+            if let error = vm.errorText {
+                InlineNotice(text: error, tone: BrandTheme.danger, systemImage: "wifi.exclamationmark")
+            }
+            if let status = vm.manualEntryStatus {
+                InlineNotice(text: status, tone: BrandTheme.success, systemImage: "checkmark.circle.fill")
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+    }
+
+    // MARK: - Helpers
 
     private var canSaveManual: Bool {
         guard parseAmount(manualAmount) != nil else { return false }
@@ -363,13 +541,13 @@ struct TodayView: View {
 struct FitsinInputStyle: TextFieldStyle {
     func _body(configuration: TextField<Self._Label>) -> some View {
         configuration
-            .padding(11)
+            .padding(12)
             .background(
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: 12)
                     .fill(BrandTheme.surface)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: 12)
                     .stroke(BrandTheme.outline, lineWidth: 1)
             )
     }

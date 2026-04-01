@@ -8,11 +8,23 @@ final class MonthViewModel: ObservableObject {
     @Published var isSavingGoal = false
     private var refreshTask: Task<Void, Never>?
 
-    private var monthKey: String {
+    private static let monthFormatter: DateFormatter = {
         let fmt = DateFormatter()
         fmt.dateFormat = "yyyy-MM"
         fmt.timeZone = TimeZone(identifier: "Europe/London")
-        return fmt.string(from: Date())
+        return fmt
+    }()
+
+    private var monthKey: String {
+        Self.monthFormatter.string(from: Date())
+    }
+
+    func loadCached() {
+        guard data == nil else { return }
+        if let cached: MonthMetrics = LocalCache.read(MonthMetrics.self, key: "month.json") {
+            data = cached
+            monthGoal = cached.month_goal
+        }
     }
 
     func load() async {
@@ -35,13 +47,13 @@ final class MonthViewModel: ObservableObject {
                 errorText = "No access code saved."
                 return
             }
-            if let cached: MonthMetrics = LocalCache.read(MonthMetrics.self, key: "month.json") {
-                data = cached
-                monthGoal = cached.month_goal
-                errorText = "Showing cached month data."
-            } else {
-                errorText = "Could not load month metrics."
+            if data == nil {
+                if let cached: MonthMetrics = LocalCache.read(MonthMetrics.self, key: "month.json") {
+                    data = cached
+                    monthGoal = cached.month_goal
+                }
             }
+            errorText = data != nil ? "Showing cached month data." : "Could not load month metrics."
         }
     }
 
@@ -58,7 +70,7 @@ final class MonthViewModel: ObservableObject {
         }
     }
 
-    func startAutoRefresh(intervalSeconds: UInt64 = 15) {
+    func startAutoRefresh(intervalSeconds: UInt64 = 60) {
         stopAutoRefresh()
         refreshTask = Task { [weak self] in
             guard let self else { return }

@@ -26,11 +26,11 @@ struct SettingsView: View {
                                 HStack(spacing: 12) {
                                     Image(systemName: "list.bullet.clipboard")
                                         .font(.title3.weight(.semibold))
-                                        .foregroundStyle(BrandTheme.accent)
-                                        .frame(width: 34, height: 34)
+                                        .foregroundStyle(BrandTheme.ink)
+                                        .frame(width: 36, height: 36)
                                         .background(
                                             RoundedRectangle(cornerRadius: 10)
-                                                .fill(BrandTheme.accent.opacity(0.14))
+                                                .fill(BrandTheme.ink.opacity(0.06))
                                         )
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("Manual Sales Log")
@@ -45,13 +45,13 @@ struct SettingsView: View {
                                         .font(.caption.weight(.bold))
                                         .foregroundStyle(BrandTheme.inkSoft)
                                 }
-                                .padding(12)
+                                .padding(14)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 12)
+                                    RoundedRectangle(cornerRadius: 14)
                                         .fill(BrandTheme.surfaceStrong)
                                 )
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
+                                    RoundedRectangle(cornerRadius: 14)
                                         .stroke(BrandTheme.outline, lineWidth: 1)
                                 )
                             }
@@ -67,42 +67,62 @@ struct SettingsView: View {
                                     Text("Live Sync")
                                         .foregroundStyle(BrandTheme.inkSoft)
                                     Spacer()
-                                    StatusPill(text: "Every 15s", tone: BrandTheme.success)
+                                    StatusPill(text: "Every 60s", tone: BrandTheme.success)
                                 }
                                 .padding(.vertical, 12)
                                 Divider().overlay(BrandTheme.divider)
                                 settingsRow(label: "App Version", value: appVersion)
                             }
-                            .padding(.horizontal, 12)
+                            .padding(.horizontal, 14)
                             .background(
-                                RoundedRectangle(cornerRadius: 12)
+                                RoundedRectangle(cornerRadius: 14)
                                     .fill(BrandTheme.surfaceStrong)
                             )
                             .overlay(
-                                RoundedRectangle(cornerRadius: 12)
+                                RoundedRectangle(cornerRadius: 14)
                                     .stroke(BrandTheme.outline, lineWidth: 1)
                             )
                             .vintageCard()
                         }
 
-                        DashboardSection(title: "Security", subtitle: "Shared-code access control") {
-                            Button {
-                                session.signOut()
-                            } label: {
-                                HStack {
-                                    Image(systemName: "rectangle.portrait.and.arrow.right")
-                                    Text("Clear Access Code")
-                                        .font(.subheadline.weight(.semibold))
+                        DashboardSection(title: "Account", subtitle: "User and access control") {
+                            VStack(spacing: 10) {
+                                Button {
+                                    session.switchUser()
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "person.crop.circle.badge.arrow.right")
+                                        Text("Switch User")
+                                            .font(.subheadline.weight(.semibold))
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 13)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 14)
+                                            .fill(BrandTheme.ink.opacity(0.06))
+                                    )
+                                    .foregroundStyle(BrandTheme.ink)
                                 }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 11)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(BrandTheme.danger.opacity(0.12))
-                                )
-                                .foregroundStyle(BrandTheme.danger)
+                                .buttonStyle(.plain)
+
+                                Button {
+                                    session.signOut()
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                                        Text("Sign Out")
+                                            .font(.subheadline.weight(.semibold))
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 13)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 14)
+                                            .fill(BrandTheme.danger.opacity(0.08))
+                                    )
+                                    .foregroundStyle(BrandTheme.danger)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                             .vintageCard()
                         }
                     }
@@ -123,33 +143,31 @@ struct SettingsView: View {
     }
 
     private var headerCard: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("fit'sin Dashboard")
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(BrandTheme.ink)
-                Text("Internal sales operations")
-                    .font(.subheadline)
+        VStack(spacing: 16) {
+            Image("fitsin-logo")
+                .resizable()
+                .scaledToFit()
+                .frame(height: 44)
+                .foregroundStyle(BrandTheme.ink)
+
+            VStack(spacing: 4) {
+                if let name = session.userName {
+                    Text("Signed in as \(name)")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(BrandTheme.ink)
+                }
+                Text("Internal sales dashboard")
+                    .font(.caption)
                     .foregroundStyle(BrandTheme.inkSoft)
             }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 6) {
-                StatusPill(text: "Secure Access", tone: BrandTheme.accent)
-                StatusPill(text: "Live Data", tone: BrandTheme.success)
+
+            HStack(spacing: 8) {
+                StatusPill(text: "Secure", tone: BrandTheme.ink)
+                StatusPill(text: "Live", tone: BrandTheme.success)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
         .vintageCard()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(
-                    LinearGradient(
-                        colors: [BrandTheme.surfaceStrong, BrandTheme.surface],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-        )
     }
 
     private func settingsRow(label: String, value: String) -> some View {

@@ -111,6 +111,18 @@ struct DaySaleItem: Codable, Identifiable {
     let order_name: String?
 }
 
+struct RotaEntry: Codable, Identifiable {
+    let id: String
+    let date: String
+    let name: String
+    let created_at: String
+}
+
+struct RotaResponse: Codable {
+    let entries: [RotaEntry]
+    let updated_at: String
+}
+
 struct DaySalesResponse: Codable {
     let date: String
     let items: [DaySaleItem]

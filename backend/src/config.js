@@ -23,6 +23,7 @@ export const config = {
   timezone: process.env.TZ || 'Europe/London',
   sharedCode: process.env.APP_SHARED_CODE || 'test-code',
   manualEntriesFile: process.env.MANUAL_ENTRIES_FILE || '.manual-entries.json',
+  rotaFile: process.env.ROTA_FILE || '.rota.json',
   shopify: {
     domain: (process.env.SHOPIFY_STORE_DOMAIN || 'example.myshopify.com')
       .replace(/^https?:\/\//, '')

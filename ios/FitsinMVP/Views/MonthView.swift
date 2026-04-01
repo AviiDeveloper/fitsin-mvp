@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MonthView: View {
-    @StateObject private var vm = MonthViewModel()
+    @ObservedObject var vm: MonthViewModel
     @State private var showingGoalSheet = false
     @State private var showingProjectionCalendar = false
     @State private var goalInput = ""
@@ -46,6 +46,7 @@ struct MonthView: View {
                             monthStatusCard(data: data)
                             targetsCard(data: data)
                             completedDaysCard(data: data)
+                            historyLink
                         } else {
                             ProgressView("Loading month dashboard...")
                                 .frame(maxWidth: .infinity, alignment: .center)
@@ -70,12 +71,13 @@ struct MonthView: View {
                 .refreshable { await vm.load() }
             }
             .task {
+                vm.loadCached()
                 await vm.load()
                 animateIn = false
                 withAnimation(.easeOut(duration: 0.35)) {
                     animateIn = true
                 }
-                vm.startAutoRefresh(intervalSeconds: 15)
+                vm.startAutoRefresh(intervalSeconds: 60)
             }
             .onDisappear { vm.stopAutoRefresh() }
             .navigationTitle("Month")
@@ -314,6 +316,46 @@ struct MonthView: View {
                 }
             }
         }
+        .vintageCard()
+    }
+
+    private var historyLink: some View {
+        NavigationLink {
+            MonthHistoryView()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(BrandTheme.ink)
+                    .frame(width: 36, height: 36)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(BrandTheme.ink.opacity(0.06))
+                    )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("View History")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(BrandTheme.ink)
+                    Text("Past months and year-by-year breakdown")
+                        .font(.caption)
+                        .foregroundStyle(BrandTheme.inkSoft)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(BrandTheme.inkSoft)
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(BrandTheme.surfaceStrong)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(BrandTheme.outline, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
         .vintageCard()
     }
 

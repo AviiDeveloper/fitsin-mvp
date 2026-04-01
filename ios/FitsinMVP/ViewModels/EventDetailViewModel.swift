@@ -17,29 +17,44 @@ final class EventDetailViewModel: ObservableObject {
     @Published var errorText: String?
     @Published var isSaving = false
 
+    private static var cachedMeta: EventMetaResponse?
+
     func load(eventId: String) async {
+        // Show cached meta immediately while network loads
+        if let meta = Self.cachedMeta {
+            applyMeta(meta)
+        }
+
         do {
             async let detailReq = APIClient.shared.getEvent(id: eventId)
             async let metaReq = APIClient.shared.getEventMeta()
             let (detail, meta) = try await (detailReq, metaReq)
 
-            people = meta.people.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-            typeOptions = Array(Set(typeOptions + meta.type_options)).sorted()
-            isEventPeopleField = (meta.event_property_type == "people")
-
-            event = detail.event
-            titleDraft = detail.event.title
-            dateDraft = detail.event.date ?? ""
-            typeDraft = detail.event.type ?? ""
-            eventDraft = detail.event.event ?? ""
-            placeDraft = detail.event.place ?? ""
-            tagsDraft = (detail.event.tags ?? []).joined(separator: ", ")
-            assigneeIds = Set((detail.event.assignees ?? []).map(\.id))
-            noteDraft = detail.event.note ?? ""
+            Self.cachedMeta = meta
+            applyMeta(meta)
+            applyEvent(detail.event)
             errorText = nil
         } catch {
             errorText = "Could not load event details."
         }
+    }
+
+    private func applyMeta(_ meta: EventMetaResponse) {
+        people = meta.people.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        typeOptions = Array(Set(typeOptions + meta.type_options)).sorted()
+        isEventPeopleField = (meta.event_property_type == "people")
+    }
+
+    private func applyEvent(_ item: EventItem) {
+        event = item
+        titleDraft = item.title
+        dateDraft = item.date ?? ""
+        typeDraft = item.type ?? ""
+        eventDraft = item.event ?? ""
+        placeDraft = item.place ?? ""
+        tagsDraft = (item.tags ?? []).joined(separator: ", ")
+        assigneeIds = Set((item.assignees ?? []).map(\.id))
+        noteDraft = item.note ?? ""
     }
 
     func saveEvent(eventId: String) async {
@@ -65,15 +80,7 @@ final class EventDetailViewModel: ObservableObject {
                     note: noteDraft
                 )
             )
-            event = payload.event
-            titleDraft = payload.event.title
-            dateDraft = payload.event.date ?? ""
-            typeDraft = payload.event.type ?? ""
-            eventDraft = payload.event.event ?? ""
-            placeDraft = payload.event.place ?? ""
-            tagsDraft = (payload.event.tags ?? []).joined(separator: ", ")
-            assigneeIds = Set((payload.event.assignees ?? []).map(\.id))
-            noteDraft = payload.event.note ?? ""
+            applyEvent(payload.event)
             errorText = nil
         } catch {
             errorText = "Could not save event."

@@ -88,6 +88,11 @@ final class APIClient {
         try await fetch(MonthMetrics.self, path: "/v1/month")
     }
 
+    func getMonth(month: String) async throws -> MonthMetrics {
+        let encoded = month.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? month
+        return try await fetch(MonthMetrics.self, path: "/v1/month?month=\(encoded)")
+    }
+
     func getEvents() async throws -> EventsResponse {
         try await fetch(EventsResponse.self, path: "/v1/events")
     }
@@ -160,9 +165,37 @@ final class APIClient {
         _ = try await fetch(EmptyResponse.self, path: "/v1/manual-entries/\(encoded)", method: "DELETE")
     }
 
+    func warmUp() async {
+        guard let url = URL(string: "/v1/today", relativeTo: baseURL) else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "HEAD"
+        req.timeoutInterval = 10
+        if let code = KeychainStore.readCode(), !code.isEmpty {
+            req.setValue(code, forHTTPHeaderField: "X-APP-CODE")
+        }
+        _ = try? await URLSession.shared.data(for: req)
+    }
+
     func getDaySales(date: String) async throws -> DaySalesResponse {
         let encoded = date.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? date
         return try await fetch(DaySalesResponse.self, path: "/v1/day?date=\(encoded)")
+    }
+
+    // MARK: - Rota
+
+    func getRotaEntries(from: String, to: String) async throws -> RotaResponse {
+        try await fetch(RotaResponse.self, path: "/v1/rota?from=\(from)&to=\(to)")
+    }
+
+    func addRotaEntry(date: String, name: String) async throws -> RotaEntry {
+        let payload: [String: Any] = ["date": date, "name": name]
+        let body = try JSONSerialization.data(withJSONObject: payload, options: [])
+        return try await fetch(RotaEntry.self, path: "/v1/rota", method: "POST", body: body)
+    }
+
+    func deleteRotaEntry(id: String) async throws {
+        let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
+        _ = try await fetch(EmptyResponse.self, path: "/v1/rota/\(encoded)", method: "DELETE")
     }
 }
 

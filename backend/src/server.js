@@ -10,6 +10,7 @@ import { buildInstallUrl, exchangeCodeForOfflineToken } from './services/shopify
 import { hasShopifyAccessToken } from './services/shopifyTokenStore.js';
 import { currentMonthKey, getMonthGoal, setMonthGoal } from './services/monthGoals.js';
 import { createManualEntry, deleteManualEntry, listManualEntries } from './services/manualEntries.js';
+import { getRotaEntries, addRotaEntry, removeRotaEntry } from './services/rota.js';
 import { fetchDailySalesItems } from './services/shopify.js';
 import { TTLCache } from './utils/cache.js';
 import { DateTime } from 'luxon';
@@ -289,6 +290,38 @@ app.delete('/v1/manual-entries/:id', async (req, res) => {
       return res.status(404).json({ error: 'Failed to delete manual entry', detail: error.message });
     }
     return res.status(400).json({ error: 'Failed to delete manual entry', detail: error.message });
+  }
+});
+
+// ── Rota ──────────────────────────────────────────────
+
+app.get('/v1/rota', async (req, res) => {
+  try {
+    const entries = await getRotaEntries(req.query.from, req.query.to, config.timezone);
+    return res.json({ entries, updated_at: new Date().toISOString() });
+  } catch (error) {
+    return res.status(400).json({ error: 'Failed to load rota', detail: error.message });
+  }
+});
+
+app.post('/v1/rota', async (req, res) => {
+  try {
+    const entry = await addRotaEntry(req.body, config.timezone);
+    return res.status(201).json(entry);
+  } catch (error) {
+    return res.status(400).json({ error: 'Failed to add rota entry', detail: error.message });
+  }
+});
+
+app.delete('/v1/rota/:id', async (req, res) => {
+  try {
+    await removeRotaEntry(req.params.id);
+    return res.status(204).send();
+  } catch (error) {
+    if (error.message === 'Rota entry not found.') {
+      return res.status(404).json({ error: 'Failed to delete rota entry', detail: error.message });
+    }
+    return res.status(400).json({ error: 'Failed to delete rota entry', detail: error.message });
   }
 });
 

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct EventsView: View {
-    @StateObject private var vm = EventsViewModel()
+    @ObservedObject var vm: EventsViewModel
     @State private var animateIn = false
 
     var body: some View {
@@ -32,6 +32,7 @@ struct EventsView: View {
                 .refreshable { await vm.load() }
             }
             .task {
+                vm.loadCached()
                 await vm.load()
                 animateIn = false
                 withAnimation(.easeOut(duration: 0.35)) {

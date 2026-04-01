@@ -39,7 +39,7 @@ final class ManualEntriesViewModel: ObservableObject {
         }
     }
 
-    func startAutoRefresh(intervalSeconds: UInt64 = 15) {
+    func startAutoRefresh(intervalSeconds: UInt64 = 60) {
         stopAutoRefresh()
         refreshTask = Task { [weak self] in
             guard let self else { return }

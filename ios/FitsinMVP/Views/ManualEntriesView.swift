@@ -70,7 +70,7 @@ struct ManualEntriesView: View {
         .refreshable { await vm.load() }
         .task {
             await vm.load()
-            vm.startAutoRefresh(intervalSeconds: 15)
+            vm.startAutoRefresh(intervalSeconds: 60)
             animateIn = false
             withAnimation(.spring(duration: 0.45, bounce: 0.2)) {
                 animateIn = true
