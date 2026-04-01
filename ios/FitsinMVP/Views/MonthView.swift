@@ -46,11 +46,11 @@ struct MonthView: View {
                             heroSection(data: data)
                             statsRow(data: data)
                             actionsRow
-                            recentDaysSection(data: data)
+                            recentDaysSection(data: data, lastMonthData: vm.lastMonthData)
 
                             Spacer().frame(height: 20)
 
-                            lastMonthCard
+                            lastMonthCard(data: vm.lastMonthData)
 
                             Spacer().frame(height: 20)
 
@@ -235,9 +235,9 @@ struct MonthView: View {
 
     // MARK: - Recent Days
 
-    private func recentDaysSection(data: MonthMetrics) -> some View {
+    private func recentDaysSection(data: MonthMetrics, lastMonthData: MonthMetrics?) -> some View {
         let currentDays = filteredDays(from: data)
-        let lastMonthDays = lastMonthRecentDays()
+        let lastMonthDays = lastMonthRecentDays(currentData: data, lastMonthData: lastMonthData)
         let allDays = Array((lastMonthDays + currentDays).reversed())
 
         return VStack(alignment: .leading, spacing: 0) {
@@ -329,9 +329,9 @@ struct MonthView: View {
 
     // MARK: - Last Month Card
 
-    private var lastMonthCard: some View {
+    private func lastMonthCard(data lastMonth: MonthMetrics?) -> some View {
         Group {
-            if let last = vm.lastMonthData {
+            if let last = lastMonth {
                 let paceTone = last.ahead_behind >= 0 ? BrandTheme.success : BrandTheme.danger
 
                 VStack(alignment: .leading, spacing: 0) {
@@ -536,14 +536,13 @@ struct MonthView: View {
 
     // MARK: - Helpers
 
-    private func lastMonthRecentDays() -> [MonthDay] {
-        guard let lastData = vm.lastMonthData else { return [] }
+    private func lastMonthRecentDays(currentData: MonthMetrics, lastMonthData: MonthMetrics?) -> [MonthDay] {
+        guard let lastData = lastMonthData else { return [] }
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = TimeZone(identifier: "Europe/London") ?? .current
         let today = cal.startOfDay(for: Date())
 
-        // Get last 7 days from previous month to fill the gap
-        let currentMonthDayCount = filteredDays(from: vm.data ?? lastData).count
+        let currentMonthDayCount = filteredDays(from: currentData).count
         let fillCount = max(0, 7 - currentMonthDayCount)
         guard fillCount > 0 else { return [] }
 
