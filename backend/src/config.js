@@ -58,5 +58,13 @@ export const config = {
       .filter(Boolean)
   },
   cacheTtlSeconds: Number(process.env.CACHE_TTL_SECONDS || 60),
-  staleCacheMaxAgeSeconds: Number(process.env.STALE_CACHE_MAX_AGE_SECONDS || 3600)
+  staleCacheMaxAgeSeconds: Number(process.env.STALE_CACHE_MAX_AGE_SECONDS || 3600),
+  pushDevicesFile: process.env.PUSH_DEVICES_FILE || '.push-devices.json',
+  apns: {
+    keyId: process.env.APNS_KEY_ID || '',
+    teamId: process.env.APNS_TEAM_ID || '',
+    keyP8: process.env.APNS_KEY_P8 || '',
+    bundleId: process.env.APNS_BUNDLE_ID || 'com.fitsin.mvp',
+    production: process.env.APNS_PRODUCTION === 'true'
+  }
 };

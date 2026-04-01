@@ -5,6 +5,7 @@ enum KeychainStore {
     private static let service = "com.fitsin.m3"
     private static let codeAccount = "app_shared_code"
     private static let nameAccount = "app_user_name"
+    private static let deviceTokenAccount = "push_device_token"
 
     // MARK: - Access Code
 
@@ -32,6 +33,20 @@ enum KeychainStore {
 
     static func clearName() {
         delete(account: nameAccount)
+    }
+
+    // MARK: - Device Token
+
+    static func saveDeviceToken(_ token: String) -> Bool {
+        save(value: token, account: deviceTokenAccount)
+    }
+
+    static func readDeviceToken() -> String? {
+        read(account: deviceTokenAccount)
+    }
+
+    static func clearDeviceToken() {
+        delete(account: deviceTokenAccount)
     }
 
     // MARK: - Private

@@ -77,7 +77,14 @@ struct MonthView: View {
                 vm.startAutoRefresh(intervalSeconds: 60)
             }
             .onDisappear { vm.stopAutoRefresh() }
-            .navigationTitle("Month")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Month")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundStyle(BrandTheme.ink)
+                }
+            }
             .toolbarColorScheme(.light, for: .navigationBar)
             .sheet(isPresented: $showingGoalSheet) { goalSheet }
             .sheet(isPresented: $showingProjectionCalendar) { projectionCalendarSheet }

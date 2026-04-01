@@ -19,6 +19,46 @@ struct SettingsView: View {
                     VStack(spacing: 18) {
                         headerCard
 
+                        DashboardSection(title: "Preferences") {
+                            NavigationLink {
+                                NotificationSettingsView()
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "bell.fill")
+                                        .font(.title3.weight(.semibold))
+                                        .foregroundStyle(BrandTheme.ink)
+                                        .frame(width: 36, height: 36)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .fill(BrandTheme.ink.opacity(0.06))
+                                        )
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Notifications")
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(BrandTheme.ink)
+                                        Text("Sale alerts, daily summary, rota reminders")
+                                            .font(.caption)
+                                            .foregroundStyle(BrandTheme.inkSoft)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(BrandTheme.inkSoft)
+                                }
+                                .padding(14)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .fill(BrandTheme.surfaceStrong)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .stroke(BrandTheme.outline, lineWidth: 1)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .vintageCard()
+                        }
+
                         DashboardSection(title: "Admin", subtitle: "Data and internal controls") {
                             NavigationLink {
                                 SellerSalesView()

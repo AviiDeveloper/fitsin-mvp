@@ -181,6 +181,25 @@ final class APIClient {
         return try await fetch(DaySalesResponse.self, path: "/v1/day?date=\(encoded)")
     }
 
+    // MARK: - Devices (Push)
+
+    func registerDevice(token: String, name: String, preferences: [String: Any]) async throws {
+        let payload: [String: Any] = ["token": token, "name": name, "preferences": preferences]
+        let body = try JSONSerialization.data(withJSONObject: payload, options: [])
+        _ = try await fetch(EmptyResponse.self, path: "/v1/devices", method: "POST", body: body)
+    }
+
+    func updateDevicePreferences(token: String, preferences: [String: Any]) async throws {
+        let payload: [String: Any] = ["token": token, "preferences": preferences]
+        let body = try JSONSerialization.data(withJSONObject: payload, options: [])
+        _ = try await fetch(EmptyResponse.self, path: "/v1/devices", method: "PUT", body: body)
+    }
+
+    func removeDevice(token: String) async throws {
+        let encoded = token.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? token
+        _ = try await fetch(EmptyResponse.self, path: "/v1/devices/\(encoded)", method: "DELETE")
+    }
+
     // MARK: - Sellers
 
     func getSellerSales(month: String) async throws -> SellerSalesResponse {

@@ -12,6 +12,9 @@ import { currentMonthKey, getMonthGoal, setMonthGoal } from './services/monthGoa
 import { createManualEntry, deleteManualEntry, listManualEntries } from './services/manualEntries.js';
 import { getRotaEntries, addRotaEntry, removeRotaEntry, getSchedules, setSchedule, getScheduleForUser } from './services/rota.js';
 import { fetchDailySalesItems, fetchSellerSales } from './services/shopify.js';
+import { registerDevice, updatePreferences, removeDevice } from './services/pushDevices.js';
+import { sendPush, sendPushToPreference, sendPushToSeller, sendPushToDevice } from './services/push.js';
+import { getRotaEntries as getRotaEntriesForPush } from './services/rota.js';
 import { TTLCache } from './utils/cache.js';
 import { DateTime } from 'luxon';
 
@@ -21,7 +24,80 @@ const oauthStateCache = new TTLCache();
 const ttlMs = config.cacheTtlSeconds * 1000;
 const staleMaxMs = config.staleCacheMaxAgeSeconds * 1000;
 
+const SELLER_PREFIXES_PUSH = ['TA', 'AA'];
+const COMMISSION_RATE_PUSH = 0.15;
+
 app.use(helmet({ hsts: config.nodeEnv === 'production' }));
+
+// Shopify webhook needs raw body for HMAC verification — must come before express.json()
+app.post('/webhooks/shopify/order-created', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    // Verify Shopify HMAC
+    const hmacHeader = req.header('X-Shopify-Hmac-Sha256') || '';
+    const secret = config.shopify.apiSecret;
+
+    if (secret && hmacHeader) {
+      const computed = crypto.createHmac('sha256', secret).update(req.body).digest('base64');
+      if (!crypto.timingSafeEqual(Buffer.from(computed), Buffer.from(hmacHeader))) {
+        return res.status(401).json({ error: 'Invalid webhook signature' });
+      }
+    }
+
+    const order = JSON.parse(req.body.toString());
+    const lineItems = Array.isArray(order.line_items) ? order.line_items : [];
+
+    // Calculate order total (store revenue)
+    const orderTotal = Number(order.subtotal_price || order.total_price || 0);
+    const orderName = order.name || '';
+    const itemNames = lineItems.map((li) => li.title || li.name).filter(Boolean);
+    const description = itemNames.slice(0, 3).join(' • ') || 'Order';
+
+    // Check for seller items and calculate deductions
+    let sellerDeduction = 0;
+    const sellerItems = [];
+
+    for (const li of lineItems) {
+      const name = li.title || li.name || '';
+      for (const prefix of SELLER_PREFIXES_PUSH) {
+        if (name.startsWith(`${prefix} `) || name.startsWith(`${prefix}-`) || name.startsWith(`${prefix}:`)) {
+          const gross = Number(li.price || 0) * Number(li.quantity || 1);
+          const sellerNet = gross * (1 - COMMISSION_RATE_PUSH);
+          sellerDeduction += sellerNet;
+          sellerItems.push({ prefix, name, gross, sellerNet, commission: gross * COMMISSION_RATE_PUSH });
+          break;
+        }
+      }
+    }
+
+    const storeRevenue = Math.max(0, orderTotal - sellerDeduction);
+
+    // Send "new sale" notification to all who want it
+    const gbp = (v) => `£${Number(v).toFixed(2)}`;
+    await sendPushToPreference('new_sale', {
+      title: 'New Sale',
+      body: `${gbp(storeRevenue)} — ${description}`,
+      data: { type: 'new_sale', order_name: orderName }
+    });
+
+    // Send seller-specific notifications
+    for (const si of sellerItems) {
+      await sendPushToSeller(si.prefix, {
+        title: 'Your Sale',
+        body: `${si.name} — ${gbp(si.gross)} (you earn ${gbp(si.sellerNet)})`,
+        data: { type: 'commission_sale', prefix: si.prefix }
+      });
+    }
+
+    // Bust cache so next API call reflects new order
+    cache.clear();
+
+    return res.status(200).json({ ok: true });
+  } catch (error) {
+    console.error('[webhook] order-created error:', error);
+    return res.status(200).json({ ok: true }); // Always 200 to Shopify to prevent retries
+  }
+});
+
 app.use(express.json());
 app.use(morgan('tiny'));
 app.use(requireAppCode);
@@ -357,6 +433,84 @@ app.put('/v1/rota/schedule', async (req, res) => {
     return res.json({ schedules, updated_at: new Date().toISOString() });
   } catch (error) {
     return res.status(400).json({ error: 'Failed to save schedule', detail: error.message });
+  }
+});
+
+// ── Devices (Push Registration) ───────────────────────
+
+app.post('/v1/devices', async (req, res) => {
+  try {
+    const device = await registerDevice(req.body);
+    return res.status(201).json(device);
+  } catch (error) {
+    return res.status(400).json({ error: 'Failed to register device', detail: error.message });
+  }
+});
+
+app.put('/v1/devices', async (req, res) => {
+  try {
+    const device = await updatePreferences(req.body.token, req.body.preferences);
+    return res.json(device);
+  } catch (error) {
+    return res.status(400).json({ error: 'Failed to update preferences', detail: error.message });
+  }
+});
+
+app.delete('/v1/devices/:token', async (req, res) => {
+  try {
+    await removeDevice(req.params.token);
+    return res.status(204).send();
+  } catch (error) {
+    return res.status(400).json({ error: 'Failed to remove device', detail: error.message });
+  }
+});
+
+// ── Push Triggers (called by cron jobs) ───────────────
+
+app.post('/v1/push/daily-summary', async (req, res) => {
+  try {
+    const metrics = await computeTodayMetrics();
+    const gbp = (v) => `£${Number(v).toFixed(2)}`;
+    const pct = metrics.pct > 0 ? `${Math.round(metrics.pct)}%` : '0%';
+
+    await sendPushToPreference('daily_summary', {
+      title: 'Daily Summary',
+      body: `Today: ${gbp(metrics.actual_today)} / ${gbp(metrics.target_today)} (${pct})`,
+      data: { type: 'daily_summary' }
+    });
+
+    return res.json({ ok: true, sent: true });
+  } catch (error) {
+    console.error('[push] daily-summary error:', error);
+    return res.status(500).json({ error: 'Failed to send daily summary', detail: error.message });
+  }
+});
+
+app.post('/v1/push/rota-reminder', async (req, res) => {
+  try {
+    const tomorrow = DateTime.now().setZone(config.timezone).plus({ days: 1 });
+    const tomorrowKey = tomorrow.toFormat('yyyy-LL-dd');
+
+    // Skip Sundays
+    if (tomorrow.weekday === 7) {
+      return res.json({ ok: true, skipped: 'sunday' });
+    }
+
+    const entries = await getRotaEntriesForPush(tomorrowKey, tomorrowKey, config.timezone);
+    const dayLabel = tomorrow.toFormat('EEEE');
+
+    for (const entry of entries) {
+      await sendPushToDevice(entry.name, {
+        title: 'Opening Reminder',
+        body: `You're opening the store tomorrow (${dayLabel}) at 12`,
+        data: { type: 'rota_reminder', date: tomorrowKey }
+      });
+    }
+
+    return res.json({ ok: true, reminded: entries.length });
+  } catch (error) {
+    console.error('[push] rota-reminder error:', error);
+    return res.status(500).json({ error: 'Failed to send rota reminders', detail: error.message });
   }
 });
 

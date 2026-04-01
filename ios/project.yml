@@ -14,10 +14,13 @@ targets:
       - FitsinMVP
     resources:
       - FitsinMVP/Resources
+    entitlements:
+      path: FitsinMVP/Resources/FitsinMVP.entitlements
     settings:
       base:
         INFOPLIST_FILE: FitsinMVP/Resources/Info.plist
         PRODUCT_NAME: FitsinMVP
+        CODE_SIGN_ENTITLEMENTS: FitsinMVP/Resources/FitsinMVP.entitlements
       configs:
         Debug:
           base:

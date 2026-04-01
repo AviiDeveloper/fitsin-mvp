@@ -96,7 +96,14 @@ struct TodayView: View {
                 vm.startAutoRefresh(intervalSeconds: 60)
             }
             .onDisappear { vm.stopAutoRefresh() }
-            .navigationTitle("Today")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Today")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundStyle(BrandTheme.ink)
+                }
+            }
             .toolbarColorScheme(.light, for: .navigationBar)
         }
     }

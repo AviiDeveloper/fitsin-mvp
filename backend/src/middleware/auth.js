@@ -15,7 +15,7 @@ function timingSafeEqualStr(a, b) {
 }
 
 export function requireAppCode(req, res, next) {
-  if (req.path === '/health' || req.path.startsWith('/auth/shopify')) {
+  if (req.path === '/health' || req.path.startsWith('/auth/shopify') || req.path.startsWith('/webhooks/')) {
     return next();
   }
 
