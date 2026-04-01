@@ -106,7 +106,10 @@ export async function computeTodayMetrics() {
   const [shopifySales, manualSales, sellerDeductions] = await Promise.all([
     fetchDailySalesMap(historyStart, nextMonthStart, config.timezone),
     dailyManualSalesMap(historyStart, nextMonthStart, config.timezone),
-    fetchSellerDeductionsMap(monthStart, nextMonthStart, config.timezone)
+    fetchSellerDeductionsMap(monthStart, nextMonthStart, config.timezone).catch((err) => {
+      console.error('[metrics] seller deductions failed, skipping:', err.message);
+      return new Map();
+    })
   ]);
   const salesMap = applySellerDeductions(mergeSalesMaps(shopifySales, manualSales), sellerDeductions);
   const historicalRows = buildHistoricalRows(salesMap, todayStart, config.timezone);
@@ -156,7 +159,10 @@ export async function computeMonthMetrics(monthKeyInput = null) {
   const [shopifySales, manualSales, sellerDeductions] = await Promise.all([
     fetchDailySalesMap(historyStart, nextMonthStart, config.timezone),
     dailyManualSalesMap(historyStart, nextMonthStart, config.timezone),
-    fetchSellerDeductionsMap(monthStart, nextMonthStart, config.timezone)
+    fetchSellerDeductionsMap(monthStart, nextMonthStart, config.timezone).catch((err) => {
+      console.error('[metrics] seller deductions failed, skipping:', err.message);
+      return new Map();
+    })
   ]);
   const salesMap = applySellerDeductions(mergeSalesMaps(shopifySales, manualSales), sellerDeductions);
   const historicalRows = buildHistoricalRows(salesMap, monthStart, config.timezone);
