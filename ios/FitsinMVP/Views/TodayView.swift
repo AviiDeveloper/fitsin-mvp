@@ -11,6 +11,7 @@ struct TodayView: View {
     @State private var manualNote = ""
     @State private var manualDescription = ""
     @State private var showManualEntry = false
+    @State private var showSchedule = false
 
     private static let gbpFormatter: NumberFormatter = {
         let f = NumberFormatter()
@@ -83,9 +84,11 @@ struct TodayView: View {
             }
             .task {
                 vm.loadCached()
+                let userName = session.userName ?? ""
                 async let loadToday: Void = vm.load()
                 async let loadRota: Void = rotaVM.load()
-                _ = await (loadToday, loadRota)
+                async let loadSched: Void = rotaVM.loadSchedule(userName: userName)
+                _ = await (loadToday, loadRota, loadSched)
                 animateIn = false
                 withAnimation(.easeOut(duration: 0.4)) {
                     animateIn = true
@@ -289,13 +292,32 @@ struct TodayView: View {
                     .tracking(0.3)
                     .foregroundStyle(BrandTheme.ink)
                 Spacer()
-                Text("Tap to sign up")
-                    .font(.caption)
-                    .foregroundStyle(BrandTheme.inkSoft)
+                Button {
+                    withAnimation(.spring(duration: 0.3)) {
+                        showSchedule.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "calendar.badge.clock")
+                            .font(.caption)
+                        Text("My Days")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(BrandTheme.ink.opacity(0.06)))
+                    .foregroundStyle(BrandTheme.ink)
+                }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 20)
             .padding(.top, 20)
-            .padding(.bottom, 12)
+            .padding(.bottom, 8)
+
+            if showSchedule {
+                scheduleRow
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
 
             VStack(spacing: 0) {
                 ForEach(Array(rotaVM.upcomingDays.enumerated()), id: \.element.key) { index, day in
@@ -315,6 +337,42 @@ struct TodayView: View {
             }
         )
         .padding(.top, 16)
+    }
+
+    private var scheduleRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("I can open every:")
+                .font(.caption)
+                .foregroundStyle(BrandTheme.inkSoft)
+
+            HStack(spacing: 6) {
+                ForEach(RotaViewModel.weekdayLabels, id: \.id) { day in
+                    let isSelected = rotaVM.myScheduleDays.contains(day.id)
+                    Button {
+                        var updated = rotaVM.myScheduleDays
+                        if isSelected { updated.remove(day.id) } else { updated.insert(day.id) }
+                        Task { await rotaVM.saveSchedule(userName: session.userName ?? "", days: updated) }
+                    } label: {
+                        Text(day.short)
+                            .font(.system(size: 12, weight: .bold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(isSelected ? BrandTheme.ink : BrandTheme.ink.opacity(0.04))
+                            )
+                            .foregroundStyle(isSelected ? .white : BrandTheme.inkSoft)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            Text("Auto-fills each week. Tap days above to override.")
+                .font(.system(size: 10))
+                .foregroundStyle(BrandTheme.inkSoft.opacity(0.6))
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 12)
     }
 
     private func rotaDayRow(date: Date, key: String) -> some View {

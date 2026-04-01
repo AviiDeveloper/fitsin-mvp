@@ -21,6 +21,43 @@ struct SettingsView: View {
 
                         DashboardSection(title: "Admin", subtitle: "Data and internal controls") {
                             NavigationLink {
+                                SellerSalesView()
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "person.2.fill")
+                                        .font(.title3.weight(.semibold))
+                                        .foregroundStyle(BrandTheme.ink)
+                                        .frame(width: 36, height: 36)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .fill(BrandTheme.ink.opacity(0.06))
+                                        )
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Seller Commission")
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(BrandTheme.ink)
+                                        Text("Track TA, AA, HW sales and commission")
+                                            .font(.caption)
+                                            .foregroundStyle(BrandTheme.inkSoft)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(BrandTheme.inkSoft)
+                                }
+                                .padding(14)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .fill(BrandTheme.surfaceStrong)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .stroke(BrandTheme.outline, lineWidth: 1)
+                                )
+                            }
+                            .buttonStyle(.plain)
+
+                            NavigationLink {
                                 ManualEntriesView()
                             } label: {
                                 HStack(spacing: 12) {

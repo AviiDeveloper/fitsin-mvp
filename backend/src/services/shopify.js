@@ -87,6 +87,7 @@ async function fetchOrdersWithLineItemsBetween(startIso, endIso) {
                   id
                   name
                   quantity
+                  originalUnitPriceSet { shopMoney { amount } }
                 }
               }
             }
@@ -235,4 +236,117 @@ export async function fetchDailySalesItems(dateKey, timezone) {
 
   items.sort((a, b) => String(b.sold_at).localeCompare(String(a.sold_at)));
   return items;
+}
+
+// MARK: - Seller Config
+
+const SELLER_PREFIXES = ['TA', 'AA', 'HW'];
+const COMMISSION_RATE = 0.15;
+
+function parseSellerPrefix(itemName) {
+  if (!itemName) return null;
+  for (const prefix of SELLER_PREFIXES) {
+    if (itemName.startsWith(`${prefix} `) || itemName.startsWith(`${prefix}-`) || itemName.startsWith(`${prefix}:`)) {
+      return prefix;
+    }
+  }
+  return null;
+}
+
+// MARK: - Seller Deductions (for metrics adjustment)
+
+export async function fetchSellerDeductionsMap(startDate, endDateExclusive, timezone) {
+  const orders = await fetchOrdersWithLineItemsBetween(startDate.toISO(), endDateExclusive.toISO());
+  const deductions = new Map();
+
+  for (const order of orders) {
+    const saleTimestamp = orderSaleTimestamp(order);
+    if (!saleTimestamp) continue;
+    const key = toDateKey(saleTimestamp, timezone);
+
+    const lineItems = Array.isArray(order.lineItems?.edges) ? order.lineItems.edges : [];
+
+    for (const edge of lineItems) {
+      const node = edge?.node;
+      if (!node) continue;
+      const seller = parseSellerPrefix(node.name);
+      if (!seller) continue;
+
+      const unitPrice = Number(node.originalUnitPriceSet?.shopMoney?.amount || 0);
+      const qty = Number(node.quantity || 1);
+      const sellerPortion = unitPrice * qty * (1 - COMMISSION_RATE);
+
+      deductions.set(key, Math.round(((deductions.get(key) || 0) + sellerPortion) * 100) / 100);
+    }
+  }
+
+  return deductions;
+}
+
+// MARK: - Seller Sales
+
+export async function fetchSellerSales(monthKey, timezone) {
+  const month = DateTime.fromFormat(monthKey, 'yyyy-LL', { zone: timezone });
+  if (!month.isValid) throw new Error('Invalid month. Expected YYYY-MM.');
+
+  const start = month.startOf('month');
+  const end = month.endOf('month').plus({ days: 1 }).startOf('day');
+  const orders = await fetchOrdersWithLineItemsBetween(start.toISO(), end.toISO());
+
+  const sellerItems = [];
+
+  for (const order of orders) {
+    const soldAt = orderSaleTimestamp(order);
+    if (!soldAt) continue;
+
+    const lineItems = Array.isArray(order.lineItems?.edges) ? order.lineItems.edges : [];
+
+    for (const edge of lineItems) {
+      const node = edge?.node;
+      if (!node) continue;
+
+      const seller = parseSellerPrefix(node.name);
+      if (!seller) continue;
+
+      const unitPrice = Number(node.originalUnitPriceSet?.shopMoney?.amount || 0);
+      const qty = Number(node.quantity || 1);
+      const gross = unitPrice * qty;
+
+      sellerItems.push({
+        id: `${order.id}:${node.id}`,
+        seller,
+        item_name: node.name,
+        quantity: qty,
+        gross: Math.round(gross * 100) / 100,
+        commission: Math.round(gross * COMMISSION_RATE * 100) / 100,
+        seller_net: Math.round(gross * (1 - COMMISSION_RATE) * 100) / 100,
+        sold_at: soldAt,
+        date: toDateKey(soldAt, timezone),
+        order_name: order.name || null
+      });
+    }
+  }
+
+  // Build per-seller summaries
+  const summaryMap = {};
+  for (const prefix of SELLER_PREFIXES) {
+    summaryMap[prefix] = { seller: prefix, total_gross: 0, total_commission: 0, total_net: 0, item_count: 0 };
+  }
+
+  for (const item of sellerItems) {
+    const s = summaryMap[item.seller];
+    s.total_gross = Math.round((s.total_gross + item.gross) * 100) / 100;
+    s.total_commission = Math.round((s.total_commission + item.commission) * 100) / 100;
+    s.total_net = Math.round((s.total_net + item.seller_net) * 100) / 100;
+    s.item_count += item.quantity;
+  }
+
+  sellerItems.sort((a, b) => String(b.sold_at).localeCompare(String(a.sold_at)));
+
+  return {
+    sellers: Object.values(summaryMap),
+    items: sellerItems,
+    commission_rate: COMMISSION_RATE,
+    month: monthKey
+  };
 }

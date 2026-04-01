@@ -10,8 +10,8 @@ import { buildInstallUrl, exchangeCodeForOfflineToken } from './services/shopify
 import { hasShopifyAccessToken } from './services/shopifyTokenStore.js';
 import { currentMonthKey, getMonthGoal, setMonthGoal } from './services/monthGoals.js';
 import { createManualEntry, deleteManualEntry, listManualEntries } from './services/manualEntries.js';
-import { getRotaEntries, addRotaEntry, removeRotaEntry } from './services/rota.js';
-import { fetchDailySalesItems } from './services/shopify.js';
+import { getRotaEntries, addRotaEntry, removeRotaEntry, getSchedules, setSchedule, getScheduleForUser } from './services/rota.js';
+import { fetchDailySalesItems, fetchSellerSales } from './services/shopify.js';
 import { TTLCache } from './utils/cache.js';
 import { DateTime } from 'luxon';
 
@@ -293,6 +293,18 @@ app.delete('/v1/manual-entries/:id', async (req, res) => {
   }
 });
 
+// ── Sellers ──────────────────────────────────────────
+
+app.get('/v1/sellers', async (req, res) => {
+  try {
+    const month = req.query.month || currentMonthKey();
+    const data = await fetchSellerSales(month, config.timezone);
+    return res.json({ ...data, updated_at: new Date().toISOString() });
+  } catch (error) {
+    return res.status(400).json({ error: 'Failed to load seller sales', detail: error.message });
+  }
+});
+
 // ── Rota ──────────────────────────────────────────────
 
 app.get('/v1/rota', async (req, res) => {
@@ -322,6 +334,29 @@ app.delete('/v1/rota/:id', async (req, res) => {
       return res.status(404).json({ error: 'Failed to delete rota entry', detail: error.message });
     }
     return res.status(400).json({ error: 'Failed to delete rota entry', detail: error.message });
+  }
+});
+
+app.get('/v1/rota/schedule', async (req, res) => {
+  try {
+    const name = req.query.name;
+    if (name) {
+      const schedule = await getScheduleForUser(name);
+      return res.json({ schedule });
+    }
+    const schedules = await getSchedules();
+    return res.json({ schedules, updated_at: new Date().toISOString() });
+  } catch (error) {
+    return res.status(400).json({ error: 'Failed to load schedules', detail: error.message });
+  }
+});
+
+app.put('/v1/rota/schedule', async (req, res) => {
+  try {
+    const schedules = await setSchedule(req.body);
+    return res.json({ schedules, updated_at: new Date().toISOString() });
+  } catch (error) {
+    return res.status(400).json({ error: 'Failed to save schedule', detail: error.message });
   }
 });
 

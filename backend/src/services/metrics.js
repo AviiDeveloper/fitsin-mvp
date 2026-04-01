@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon';
 import { config } from '../config.js';
-import { buildHistoricalRows, computeTargetForDate, fetchDailySalesMap } from './shopify.js';
+import { buildHistoricalRows, computeTargetForDate, fetchDailySalesMap, fetchSellerDeductionsMap } from './shopify.js';
 import { getMonthGoal } from './monthGoals.js';
 import { dailyManualSalesMap } from './manualEntries.js';
 
@@ -14,6 +14,15 @@ function mergeSalesMaps(primary, secondary) {
     merged.set(key, round2((merged.get(key) || 0) + Number(value || 0)));
   }
   return merged;
+}
+
+function applySellerDeductions(salesMap, deductionsMap) {
+  const adjusted = new Map(salesMap);
+  for (const [key, deduction] of deductionsMap.entries()) {
+    const current = adjusted.get(key) || 0;
+    adjusted.set(key, round2(Math.max(0, current - deduction)));
+  }
+  return adjusted;
 }
 
 function buildScaledMonthTargets(monthStart, nextMonthStart, historicalRows, monthGoal) {
@@ -94,9 +103,12 @@ export async function computeTodayMetrics() {
   const monthKey = monthStart.toFormat('yyyy-LL');
   const monthGoal = await getMonthGoal(monthKey);
 
-  const shopifySales = await fetchDailySalesMap(historyStart, nextMonthStart, config.timezone);
-  const manualSales = await dailyManualSalesMap(historyStart, nextMonthStart, config.timezone);
-  const salesMap = mergeSalesMaps(shopifySales, manualSales);
+  const [shopifySales, manualSales, sellerDeductions] = await Promise.all([
+    fetchDailySalesMap(historyStart, nextMonthStart, config.timezone),
+    dailyManualSalesMap(historyStart, nextMonthStart, config.timezone),
+    fetchSellerDeductionsMap(monthStart, nextMonthStart, config.timezone)
+  ]);
+  const salesMap = applySellerDeductions(mergeSalesMaps(shopifySales, manualSales), sellerDeductions);
   const historicalRows = buildHistoricalRows(salesMap, todayStart, config.timezone);
   const scaledTargets = buildScaledMonthTargets(monthStart, nextMonthStart, historicalRows, monthGoal);
   const smartTargets = buildSmartMonthTargets({
@@ -141,9 +153,12 @@ export async function computeMonthMetrics(monthKeyInput = null) {
   const monthKey = monthStart.toFormat('yyyy-LL');
   const monthGoal = await getMonthGoal(monthKey);
 
-  const shopifySales = await fetchDailySalesMap(historyStart, nextMonthStart, config.timezone);
-  const manualSales = await dailyManualSalesMap(historyStart, nextMonthStart, config.timezone);
-  const salesMap = mergeSalesMaps(shopifySales, manualSales);
+  const [shopifySales, manualSales, sellerDeductions] = await Promise.all([
+    fetchDailySalesMap(historyStart, nextMonthStart, config.timezone),
+    dailyManualSalesMap(historyStart, nextMonthStart, config.timezone),
+    fetchSellerDeductionsMap(monthStart, nextMonthStart, config.timezone)
+  ]);
+  const salesMap = applySellerDeductions(mergeSalesMaps(shopifySales, manualSales), sellerDeductions);
   const historicalRows = buildHistoricalRows(salesMap, monthStart, config.timezone);
   const scaledTargets = buildScaledMonthTargets(monthStart, nextMonthStart, historicalRows, monthGoal);
   const smartTargets = buildSmartMonthTargets({

@@ -116,10 +116,58 @@ struct RotaEntry: Codable, Identifiable {
     let date: String
     let name: String
     let created_at: String
+    let recurring: Bool?
 }
 
 struct RotaResponse: Codable {
     let entries: [RotaEntry]
+    let updated_at: String
+}
+
+struct RotaSchedule: Codable {
+    let id: String
+    let name: String
+    let days: [Int]  // 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+    let created_at: String
+}
+
+struct RotaScheduleResponse: Codable {
+    let schedule: RotaSchedule?
+}
+
+struct RotaSchedulesResponse: Codable {
+    let schedules: [RotaSchedule]
+    let updated_at: String
+}
+
+struct SellerSummary: Codable, Identifiable {
+    let seller: String
+    let total_gross: Double
+    let total_commission: Double
+    let total_net: Double
+    let item_count: Int
+
+    var id: String { seller }
+}
+
+struct SellerItem: Codable, Identifiable {
+    let id: String
+    let seller: String
+    let item_name: String
+    let quantity: Int
+    let gross: Double
+    let commission: Double
+    let seller_net: Double
+    let sold_at: String
+    let date: String
+    let order_name: String?
+}
+
+struct SellerSalesResponse: Codable {
+    let sellers: [SellerSummary]
+    let items: [SellerItem]
+    let commission_rate: Double
+    let month: String
     let updated_at: String
 }
 

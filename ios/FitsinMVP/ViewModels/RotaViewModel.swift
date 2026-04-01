@@ -3,6 +3,7 @@ import Foundation
 @MainActor
 final class RotaViewModel: ObservableObject {
     @Published var entries: [RotaEntry] = []
+    @Published var myScheduleDays: Set<Int> = []  // 1=Mon..6=Sat
     @Published var errorText: String?
 
     private static let dateFormatter: DateFormatter = {
@@ -21,14 +22,14 @@ final class RotaViewModel: ObservableObject {
 
     var dateRange: (from: String, to: String) {
         let today = londonCalendar.startOfDay(for: Date())
-        let end = londonCalendar.date(byAdding: .day, value: 13, to: today) ?? today
+        let end = londonCalendar.date(byAdding: .day, value: 6, to: today) ?? today
         return (Self.dateFormatter.string(from: today), Self.dateFormatter.string(from: end))
     }
 
     var upcomingDays: [(date: Date, key: String)] {
         let cal = londonCalendar
         let today = cal.startOfDay(for: Date())
-        return (0..<14).compactMap { offset in
+        return (0..<7).compactMap { offset in
             guard let date = cal.date(byAdding: .day, value: offset, to: today) else { return nil }
             let weekday = cal.component(.weekday, from: date)
             guard weekday != 1 else { return nil } // skip Sundays
@@ -61,18 +62,25 @@ final class RotaViewModel: ObservableObject {
         }
     }
 
+    func loadSchedule(userName: String) async {
+        do {
+            let response = try await APIClient.shared.getMySchedule(name: userName)
+            myScheduleDays = Set(response.schedule?.days ?? [])
+        } catch {
+            // silent fail — schedule is optional
+        }
+    }
+
     func toggle(dateKey: String, userName: String) async {
         if let existing = myEntry(for: dateKey, userName: userName) {
-            // Optimistic removal
             entries.removeAll { $0.id == existing.id }
             do {
                 try await APIClient.shared.deleteRotaEntry(id: existing.id)
             } catch {
-                await load() // revert on failure
+                await load()
             }
         } else {
-            // Optimistic add
-            let temp = RotaEntry(id: UUID().uuidString, date: dateKey, name: userName, created_at: "")
+            let temp = RotaEntry(id: UUID().uuidString, date: dateKey, name: userName, created_at: "", recurring: nil)
             entries.append(temp)
             do {
                 let real = try await APIClient.shared.addRotaEntry(date: dateKey, name: userName)
@@ -80,8 +88,22 @@ final class RotaViewModel: ObservableObject {
                 entries.append(real)
             } catch {
                 entries.removeAll { $0.id == temp.id }
-                await load() // revert on failure
+                await load()
             }
         }
     }
+
+    func saveSchedule(userName: String, days: Set<Int>) async {
+        myScheduleDays = days
+        do {
+            _ = try await APIClient.shared.setSchedule(name: userName, days: Array(days))
+            await load() // reload to pick up generated entries
+        } catch {
+            errorText = "Could not save schedule."
+        }
+    }
+
+    static let weekdayLabels: [(id: Int, short: String)] = [
+        (1, "Mon"), (2, "Tue"), (3, "Wed"), (4, "Thu"), (5, "Fri"), (6, "Sat")
+    ]
 }

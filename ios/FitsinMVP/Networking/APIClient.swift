@@ -181,6 +181,13 @@ final class APIClient {
         return try await fetch(DaySalesResponse.self, path: "/v1/day?date=\(encoded)")
     }
 
+    // MARK: - Sellers
+
+    func getSellerSales(month: String) async throws -> SellerSalesResponse {
+        let encoded = month.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? month
+        return try await fetch(SellerSalesResponse.self, path: "/v1/sellers?month=\(encoded)")
+    }
+
     // MARK: - Rota
 
     func getRotaEntries(from: String, to: String) async throws -> RotaResponse {
@@ -196,6 +203,17 @@ final class APIClient {
     func deleteRotaEntry(id: String) async throws {
         let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
         _ = try await fetch(EmptyResponse.self, path: "/v1/rota/\(encoded)", method: "DELETE")
+    }
+
+    func getMySchedule(name: String) async throws -> RotaScheduleResponse {
+        let encoded = name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? name
+        return try await fetch(RotaScheduleResponse.self, path: "/v1/rota/schedule?name=\(encoded)")
+    }
+
+    func setSchedule(name: String, days: [Int]) async throws -> RotaSchedulesResponse {
+        let payload: [String: Any] = ["name": name, "days": days]
+        let body = try JSONSerialization.data(withJSONObject: payload, options: [])
+        return try await fetch(RotaSchedulesResponse.self, path: "/v1/rota/schedule", method: "PUT", body: body)
     }
 }
 
