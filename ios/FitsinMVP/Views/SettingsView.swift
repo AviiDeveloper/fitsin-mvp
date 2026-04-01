@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var session: AppSession
+    @EnvironmentObject private var calendarAuth: CalendarAuthManager
     @State private var animateIn = false
 
     private var appVersion: String {
@@ -162,6 +163,92 @@ struct SettingsView: View {
                             .vintageCard()
                         }
 
+                        DashboardSection(title: "Calendar", subtitle: "Google Calendar connection") {
+                            if calendarAuth.isSignedIn {
+                                VStack(spacing: 10) {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(BrandTheme.success)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("Connected")
+                                                .font(.subheadline.weight(.semibold))
+                                                .foregroundStyle(BrandTheme.ink)
+                                            Text(calendarAuth.userEmail ?? "")
+                                                .font(.caption)
+                                                .foregroundStyle(BrandTheme.inkSoft)
+                                        }
+                                        Spacer()
+                                    }
+                                    .padding(14)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 14)
+                                            .fill(BrandTheme.surfaceStrong)
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 14)
+                                            .stroke(BrandTheme.outline, lineWidth: 1)
+                                    )
+
+                                    Button {
+                                        calendarAuth.signOut()
+                                    } label: {
+                                        HStack {
+                                            Image(systemName: "xmark.circle")
+                                            Text("Disconnect Google Calendar")
+                                                .font(.subheadline.weight(.semibold))
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 13)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 14)
+                                                .fill(BrandTheme.danger.opacity(0.08))
+                                        )
+                                        .foregroundStyle(BrandTheme.danger)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                .vintageCard()
+                            } else {
+                                Button {
+                                    Task { try? await calendarAuth.signIn() }
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "calendar.badge.plus")
+                                            .font(.title3.weight(.semibold))
+                                            .foregroundStyle(BrandTheme.ink)
+                                            .frame(width: 36, height: 36)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 10)
+                                                    .fill(BrandTheme.ink.opacity(0.06))
+                                            )
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("Connect Google Calendar")
+                                                .font(.subheadline.weight(.semibold))
+                                                .foregroundStyle(BrandTheme.ink)
+                                            Text("Sign in to sync store events")
+                                                .font(.caption)
+                                                .foregroundStyle(BrandTheme.inkSoft)
+                                        }
+                                        Spacer()
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption.weight(.bold))
+                                            .foregroundStyle(BrandTheme.inkSoft)
+                                    }
+                                    .padding(14)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 14)
+                                            .fill(BrandTheme.surfaceStrong)
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 14)
+                                            .stroke(BrandTheme.outline, lineWidth: 1)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .vintageCard()
+                            }
+                        }
+
                         DashboardSection(title: "Account", subtitle: "User and access control") {
                             VStack(spacing: 10) {
                                 Button {
@@ -183,6 +270,7 @@ struct SettingsView: View {
                                 .buttonStyle(.plain)
 
                                 Button {
+                                    calendarAuth.signOut()
                                     session.signOut()
                                 } label: {
                                     HStack {

@@ -2,6 +2,10 @@ name: FitsinMVP
 options:
   deploymentTarget:
     iOS: "17.0"
+packages:
+  GoogleSignIn:
+    url: https://github.com/google/GoogleSignIn-iOS
+    from: "8.0.0"
 settings:
   base:
     PRODUCT_BUNDLE_IDENTIFIER: com.fitsin.mvp
@@ -16,6 +20,9 @@ targets:
       - FitsinMVP/Resources
     entitlements:
       path: FitsinMVP/Resources/FitsinMVP.entitlements
+    dependencies:
+      - package: GoogleSignIn
+        product: GoogleSignIn
     settings:
       base:
         INFOPLIST_FILE: FitsinMVP/Resources/Info.plist

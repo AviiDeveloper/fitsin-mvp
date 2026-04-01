@@ -1,5 +1,6 @@
 import UIKit
 import UserNotifications
+import GoogleSignIn
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
 
@@ -11,11 +12,14 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         return true
     }
 
+    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+        return GIDSignIn.sharedInstance.handle(url)
+    }
+
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         let token = deviceToken.map { String(format: "%02x", $0) }.joined()
         _ = KeychainStore.saveDeviceToken(token)
 
-        // Register with backend
         let name = KeychainStore.readName() ?? ""
         guard !name.isEmpty else { return }
 
@@ -37,7 +41,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         print("[push] Registration failed: \(error.localizedDescription)")
     }
 
-    // Show notifications even when app is in foreground
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
@@ -48,7 +51,5 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
-    ) async {
-        // Handle notification tap — could navigate to relevant screen
-    }
+    ) async {}
 }

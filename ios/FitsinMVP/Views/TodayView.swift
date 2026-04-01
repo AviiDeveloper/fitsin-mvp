@@ -606,10 +606,11 @@ struct TodayView: View {
 struct FitsinInputStyle: TextFieldStyle {
     func _body(configuration: TextField<Self._Label>) -> some View {
         configuration
+            .foregroundStyle(BrandTheme.ink)
             .padding(12)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(BrandTheme.surface)
+                    .fill(Color.white)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)

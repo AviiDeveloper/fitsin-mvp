@@ -9,17 +9,6 @@ enum APIError: Error {
     case server(String)
 }
 
-struct EventUpdatePayload {
-    let title: String
-    let date: String
-    let type: String
-    let event: String
-    let place: String
-    let tags: [String]
-    let assignees: [String]
-    let note: String
-}
-
 final class APIClient {
     static let shared = APIClient()
 
@@ -91,35 +80,6 @@ final class APIClient {
     func getMonth(month: String) async throws -> MonthMetrics {
         let encoded = month.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? month
         return try await fetch(MonthMetrics.self, path: "/v1/month?month=\(encoded)")
-    }
-
-    func getEvents() async throws -> EventsResponse {
-        try await fetch(EventsResponse.self, path: "/v1/events")
-    }
-
-    func getEvent(id: String) async throws -> EventDetailResponse {
-        let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
-        return try await fetch(EventDetailResponse.self, path: "/v1/events/\(encoded)")
-    }
-
-    func getEventMeta() async throws -> EventMetaResponse {
-        try await fetch(EventMetaResponse.self, path: "/v1/events/meta")
-    }
-
-    func updateEvent(id: String, payload: EventUpdatePayload) async throws -> EventDetailResponse {
-        let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
-        let bodyPayload: [String: Any] = [
-            "title": payload.title,
-            "date": payload.date,
-            "type": payload.type,
-            "event": payload.event,
-            "place": payload.place,
-            "tags": payload.tags,
-            "assignees": payload.assignees,
-            "note": payload.note
-        ]
-        let body = try JSONSerialization.data(withJSONObject: bodyPayload, options: [])
-        return try await fetch(EventDetailResponse.self, path: "/v1/events/\(encoded)", method: "PATCH", body: body)
     }
 
     func getMonthGoal(month: String) async throws -> MonthGoalResponse {

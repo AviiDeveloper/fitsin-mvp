@@ -35,43 +35,107 @@ struct MonthGoalResponse: Codable {
     let updated_at: String
 }
 
-struct EventItem: Codable, Identifiable {
+struct CalendarEvent: Codable, Identifiable {
     let id: String
-    let title: String
+    let summary: String?
+    let description: String?
+    let location: String?
+    let start: CalendarDateTime?
+    let end: CalendarDateTime?
+    let htmlLink: String?
+    let created: String?
+    let updated: String?
+
+    var title: String { summary ?? "Untitled Event" }
+
+    var startDate: Date? { start?.toDate() }
+    var endDate: Date? { end?.toDate() }
+    var isAllDay: Bool { start?.date != nil && start?.dateTime == nil }
+}
+
+struct CalendarDateTime: Codable {
+    let dateTime: String?
     let date: String?
-    let type: String?
-    let event: String?
-    let place: String?
-    let tags: [String]?
-    let assignees: [NotionPerson]?
-    let note: String?
-    let url: String
+    let timeZone: String?
+
+    private static let rfc3339: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
+    private static let rfc3339NoFrac: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
+
+    private static let dateOnly: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = TimeZone(identifier: "Europe/London")
+        return f
+    }()
+
+    func toDate() -> Date? {
+        if let dt = dateTime {
+            return Self.rfc3339.date(from: dt) ?? Self.rfc3339NoFrac.date(from: dt)
+        }
+        if let d = date {
+            return Self.dateOnly.date(from: d)
+        }
+        return nil
+    }
 }
 
-struct NotionPerson: Codable, Identifiable, Hashable {
-    let id: String
-    let name: String
-    let avatar_url: String?
+struct CalendarEventDraft {
+    var title: String = ""
+    var description: String = ""
+    var location: String = ""
+    var startDate: Date = Date()
+    var endDate: Date = Date().addingTimeInterval(3600)
+    var isAllDay: Bool = false
+
+    private static let rfc3339: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
+
+    private static let dateOnly: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = TimeZone(identifier: "Europe/London")
+        return f
+    }()
+
+    func toRequestBody(timeZone: String) -> [String: Any] {
+        var body: [String: Any] = [
+            "summary": title
+        ]
+
+        if !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            body["description"] = description
+        }
+        if !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            body["location"] = location
+        }
+
+        if isAllDay {
+            body["start"] = ["date": Self.dateOnly.string(from: startDate)]
+            body["end"] = ["date": Self.dateOnly.string(from: endDate)]
+        } else {
+            body["start"] = ["dateTime": Self.rfc3339.string(from: startDate), "timeZone": timeZone]
+            body["end"] = ["dateTime": Self.rfc3339.string(from: endDate), "timeZone": timeZone]
+        }
+
+        return body
+    }
 }
 
-struct EventsResponse: Codable {
-    let events: [EventItem]
-    let updated_at: String
-    let data_delayed: Bool?
-    let warning: String?
-}
-
-struct EventDetailResponse: Codable {
-    let event: EventItem
-    let updated_at: String
-}
-
-struct EventMetaResponse: Codable {
-    let people: [NotionPerson]
-    let type_options: [String]
-    let event_property_type: String?
-    let type_property_type: String?
-    let updated_at: String
+struct GoogleCalendarEventsResponse: Decodable {
+    let items: [CalendarEvent]?
+    let nextPageToken: String?
 }
 
 enum ManualSource: String, Codable, CaseIterable, Identifiable {

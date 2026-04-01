@@ -3,6 +3,7 @@ import Foundation
 @MainActor
 final class MonthViewModel: ObservableObject {
     @Published var data: MonthMetrics?
+    @Published var lastMonthData: MonthMetrics?
     @Published var errorText: String?
     @Published var monthGoal: Double?
     @Published var isSavingGoal = false
@@ -19,11 +20,23 @@ final class MonthViewModel: ObservableObject {
         Self.monthFormatter.string(from: Date())
     }
 
+    private var lastMonthKey: String {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Europe/London") ?? .current
+        let lastMonth = cal.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+        return Self.monthFormatter.string(from: lastMonth)
+    }
+
     func loadCached() {
         guard data == nil else { return }
         if let cached: MonthMetrics = LocalCache.read(MonthMetrics.self, key: "month.json") {
             data = cached
             monthGoal = cached.month_goal
+        }
+        if lastMonthData == nil {
+            if let cached: MonthMetrics = LocalCache.read(MonthMetrics.self, key: "month-last.json") {
+                lastMonthData = cached
+            }
         }
     }
 
@@ -31,6 +44,7 @@ final class MonthViewModel: ObservableObject {
         do {
             async let monthTask = APIClient.shared.getMonth()
             async let goalTask = APIClient.shared.getMonthGoal(month: monthKey)
+            async let lastTask = APIClient.shared.getMonth(month: lastMonthKey)
 
             let payload = try await monthTask
             let goal = try await goalTask
@@ -38,6 +52,12 @@ final class MonthViewModel: ObservableObject {
             monthGoal = goal.goal ?? payload.month_goal
             LocalCache.write(payload, key: "month.json")
             errorText = payload.warning
+
+            // Last month loads independently — don't fail the whole load
+            if let last = try? await lastTask {
+                lastMonthData = last
+                LocalCache.write(last, key: "month-last.json")
+            }
         } catch {
             if case APIError.unauthorized = error {
                 errorText = "Access code is invalid. Please re-enter it."

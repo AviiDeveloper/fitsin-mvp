@@ -2,408 +2,299 @@ import SwiftUI
 
 struct EventDetailView: View {
     let eventId: String
-    let fallbackEvent: EventItem
+    let fallbackEvent: CalendarEvent
 
     @StateObject private var vm = EventDetailViewModel()
     @State private var isEditing = false
+    @State private var showDeleteAlert = false
+    @Environment(\.dismiss) private var dismiss
 
-    private var event: EventItem {
-        vm.event ?? fallbackEvent
-    }
+    private static let timeFmt: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE d MMM, HH:mm"
+        f.timeZone = TimeZone(identifier: "Europe/London")
+        f.locale = Locale(identifier: "en_GB")
+        return f
+    }()
+
+    private static let dateFmt: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE d MMM yyyy"
+        f.timeZone = TimeZone(identifier: "Europe/London")
+        f.locale = Locale(identifier: "en_GB")
+        return f
+    }()
 
     var body: some View {
         ZStack {
             DashboardBackground()
 
             ScrollView {
-                VStack(spacing: 14) {
-                    headerCard
+                VStack(spacing: 0) {
+                    let event = vm.event ?? fallbackEvent
 
                     if isEditing {
-                        editCard
-                        notesEditorCard
+                        editContent
                     } else {
-                        infoCard
-                        notesReadOnlyCard
-                    }
-
-                    notionButton
-
-                    if let errorText = vm.errorText {
-                        InlineNotice(text: errorText, tone: BrandTheme.danger, systemImage: "exclamationmark.triangle.fill")
-                            .vintageCard()
+                        readContent(event: event)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
             }
         }
-        .navigationTitle("Event")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text(isEditing ? "Edit Event" : "Event")
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundStyle(BrandTheme.ink)
+            }
             ToolbarItem(placement: .topBarTrailing) {
-                Button(isEditing ? "Save" : "Edit") {
-                    if isEditing {
+                if isEditing {
+                    Button {
                         Task {
-                            await vm.saveEvent(eventId: eventId)
-                            if vm.errorText == nil {
-                                isEditing = false
-                            }
+                            await vm.save(eventId: eventId)
+                            if vm.errorText == nil { isEditing = false }
                         }
-                    } else {
-                        resetDraftsFromEvent()
+                    } label: {
+                        if vm.isSaving {
+                            ProgressView()
+                        } else {
+                            Text("Save")
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(BrandTheme.ink)
+                        }
+                    }
+                    .disabled(vm.isSaving)
+                } else {
+                    Button {
                         isEditing = true
+                    } label: {
+                        Text("Edit")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(BrandTheme.ink)
                     }
                 }
-                .disabled(vm.isSaving)
             }
-
             if isEditing {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") {
-                        resetDraftsFromEvent()
-                        vm.errorText = nil
+                        vm.resetDraft()
                         isEditing = false
                     }
-                    .disabled(vm.isSaving)
+                    .foregroundStyle(BrandTheme.ink)
                 }
             }
         }
-        .task { await vm.load(eventId: eventId) }
-        .refreshable { await vm.load(eventId: eventId) }
-    }
-
-    private var headerCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("EVENT")
-                .font(.caption.weight(.semibold))
-                .tracking(1)
-                .foregroundStyle(BrandTheme.inkSoft)
-            Text(event.title.isEmpty ? "UNTITLED" : event.title.uppercased())
-                .font(.system(size: 30, weight: .black, design: .rounded))
-                .foregroundStyle(BrandTheme.ink)
-                .lineLimit(2)
-
-            HStack(spacing: 8) {
-                if !vm.typeDraft.isEmpty {
-                    StatusPill(text: vm.typeDraft.uppercased(), tone: BrandTheme.accent)
-                }
-                if let tags = event.tags, !tags.isEmpty {
-                    StatusPill(text: "\(tags.count) tags", tone: BrandTheme.inkSoft)
-                }
+        .task {
+            await vm.load(eventId: eventId)
+        }
+        .onChange(of: vm.didDelete) { _, deleted in
+            if deleted { dismiss() }
+        }
+        .alert("Delete Event", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) {
+                Task { await vm.delete(eventId: eventId) }
             }
-
-            Text(formattedDate(event.date))
-                .font(.headline)
-                .foregroundStyle(BrandTheme.inkSoft)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will permanently remove this event from the calendar.")
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .vintageCard()
     }
 
-    private var infoCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Details")
-                .sectionHeaderStyle()
+    // MARK: - Read Mode
 
-            DetailRow(label: "Date", value: formattedDate(event.date), symbol: "calendar")
-            DetailRow(label: "Type", value: event.type ?? "-", symbol: "calendar.badge.clock")
-            if vm.isEventPeopleField {
-                DetailRow(label: "Assigned", value: assigneesLine(event.assignees), symbol: "person.2")
-            } else {
-                DetailRow(label: "Event", value: event.event ?? "-", symbol: "person.2")
-            }
-            DetailRow(label: "Place", value: event.place ?? "-", symbol: "mappin.and.ellipse")
-            DetailRow(label: "Tags", value: tagsLine(event.tags), symbol: "tag")
-        }
-        .vintageCard()
-    }
-
-    private var notesReadOnlyCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Notes")
-                .sectionHeaderStyle()
-
-            Text((event.note?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false) ? (event.note ?? "") : "No notes yet.")
-                .font(.body)
-                .foregroundStyle(BrandTheme.ink)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(BrandTheme.surfaceStrong)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(BrandTheme.outline, lineWidth: 1)
-                )
-        }
-        .vintageCard()
-    }
-
-    private var editCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            FormField(label: "Title", text: $vm.titleDraft, placeholder: "FASHION SHOW")
-            FormField(label: "Date", text: $vm.dateDraft, placeholder: "2026-02-21 or 2026-02-21T15:00:00+00:00")
-            FormField(label: "Place", text: $vm.placeDraft, placeholder: "Manchester")
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Event Type")
-                    .font(.caption.weight(.semibold))
+    private func readContent(event: CalendarEvent) -> some View {
+        VStack(spacing: 0) {
+            VStack(spacing: 8) {
+                Text("EVENT")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .tracking(1.5)
                     .foregroundStyle(BrandTheme.inkSoft)
 
-                FlowChips(options: vm.typeOptions, selected: vm.typeDraft) { option in
-                    vm.setType(option)
-                }
+                Text(event.title)
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .foregroundStyle(BrandTheme.ink)
+                    .multilineTextAlignment(.center)
 
-                if vm.typeOptions.isEmpty {
-                    FormField(label: "Type", text: $vm.typeDraft, placeholder: "Photoshoot")
-                }
-            }
-
-            if vm.isEventPeopleField {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Assign People")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(BrandTheme.inkSoft)
-
-                    if vm.people.isEmpty {
-                        Text("No people found from Notion integration access.")
-                            .font(.footnote)
+                if event.isAllDay {
+                    if let start = event.startDate {
+                        Text(Self.dateFmt.string(from: start))
+                            .font(.subheadline)
                             .foregroundStyle(BrandTheme.inkSoft)
-                    } else {
-                        AssignPeopleGrid(people: vm.people, selectedIds: vm.assigneeIds) { personId in
-                            vm.toggleAssignee(personId)
-                        }
+                    }
+                    StatusPill(text: "All Day", tone: BrandTheme.accent)
+                } else {
+                    if let start = event.startDate {
+                        Text(Self.timeFmt.string(from: start))
+                            .font(.subheadline)
+                            .foregroundStyle(BrandTheme.inkSoft)
                     }
                 }
-            } else {
-                FormField(label: "Event", text: $vm.eventDraft, placeholder: "Show, Drop, Pop-up")
-            }
-
-            FormField(label: "Tags", text: $vm.tagsDraft, placeholder: "runway, collab, press")
-        }
-        .vintageCard()
-    }
-
-    private var notesEditorCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Notes")
-                .sectionHeaderStyle()
-
-            TextEditor(text: $vm.noteDraft)
-                .frame(minHeight: 160)
-                .padding(8)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(BrandTheme.surfaceStrong)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(BrandTheme.outline, lineWidth: 1)
-                )
-        }
-        .vintageCard()
-    }
-
-    private var notionButton: some View {
-        Link(destination: URL(string: event.url)!) {
-            HStack {
-                Image(systemName: "arrow.up.right.square")
-                Text("Open in Notion")
-                    .font(.subheadline.weight(.semibold))
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 11)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(BrandTheme.accent.opacity(0.16))
-            )
-            .foregroundStyle(BrandTheme.accent)
-        }
-        .buttonStyle(.plain)
-        .vintageCard()
-    }
+            .padding(.vertical, 24)
 
-    private func resetDraftsFromEvent() {
-        vm.titleDraft = event.title
-        vm.dateDraft = event.date ?? ""
-        vm.typeDraft = event.type ?? ""
-        vm.eventDraft = event.event ?? ""
-        vm.placeDraft = event.place ?? ""
-        vm.tagsDraft = (event.tags ?? []).joined(separator: ", ")
-        vm.assigneeIds = Set((event.assignees ?? []).map(\.id))
-        vm.noteDraft = event.note ?? ""
-    }
-
-    private func tagsLine(_ tags: [String]?) -> String {
-        let cleaned = (tags ?? []).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
-        return cleaned.isEmpty ? "-" : cleaned.joined(separator: "  •  ")
-    }
-
-    private func assigneesLine(_ assignees: [NotionPerson]?) -> String {
-        let names = (assignees ?? []).map(\.name).filter { !$0.isEmpty }
-        return names.isEmpty ? "-" : names.joined(separator: ", ")
-    }
-
-    private func formattedDate(_ raw: String?) -> String {
-        guard let raw, !raw.isEmpty else { return "No date" }
-
-        let zone = TimeZone(identifier: "Europe/London") ?? .current
-        let dateOnly = DateFormatter()
-        dateOnly.timeZone = zone
-        dateOnly.locale = Locale(identifier: "en_GB")
-        dateOnly.dateFormat = "yyyy-MM-dd"
-
-        let displayDay = DateFormatter()
-        displayDay.timeZone = zone
-        displayDay.locale = Locale(identifier: "en_GB")
-        displayDay.dateFormat = "EEE d MMM yyyy"
-
-        let displayTime = DateFormatter()
-        displayTime.timeZone = zone
-        displayTime.locale = Locale(identifier: "en_GB")
-        displayTime.dateFormat = "EEE d MMM yyyy, HH:mm"
-
-        if raw.count == 10, let d = dateOnly.date(from: raw) {
-            return displayDay.string(from: d)
-        }
-
-        let iso = ISO8601DateFormatter()
-        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = iso.date(from: raw) {
-            return displayTime.string(from: d)
-        }
-
-        iso.formatOptions = [.withInternetDateTime]
-        if let d = iso.date(from: raw) {
-            return displayTime.string(from: d)
-        }
-
-        return raw
-    }
-}
-
-private struct DetailRow: View {
-    let label: String
-    let value: String
-    let symbol: String
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: symbol)
-                .font(.subheadline)
-                .foregroundStyle(BrandTheme.inkSoft)
-                .frame(width: 18)
-            Text(label)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(BrandTheme.inkSoft)
-                .frame(width: 72, alignment: .leading)
-            Text(value)
-                .font(.subheadline)
-                .foregroundStyle(BrandTheme.ink)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-}
-
-private struct FlowChips: View {
-    let options: [String]
-    let selected: String
-    let onSelect: (String) -> Void
-
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(options, id: \.self) { option in
-                    let isSelected = option.caseInsensitiveCompare(selected) == .orderedSame
-                    Button(option) {
-                        onSelect(option)
-                    }
-                    .font(.footnote.weight(.semibold))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
-                    .background(
-                        Capsule()
-                            .fill(isSelected ? BrandTheme.ink : BrandTheme.surfaceStrong)
-                    )
-                    .foregroundStyle(isSelected ? Color.white : BrandTheme.ink)
-                    .overlay(
-                        Capsule().stroke(BrandTheme.outline, lineWidth: isSelected ? 0 : 1)
-                    )
+            VStack(spacing: 0) {
+                if let loc = event.location, !loc.isEmpty {
+                    detailRow(icon: "mappin.and.ellipse", label: "Location", value: loc)
+                    Divider().overlay(BrandTheme.divider).padding(.horizontal, 20)
                 }
-            }
-            .padding(.vertical, 2)
-        }
-    }
-}
 
-private struct AssignPeopleGrid: View {
-    let people: [NotionPerson]
-    let selectedIds: Set<String>
-    let onToggle: (String) -> Void
+                if !event.isAllDay, let start = event.startDate, let end = event.endDate {
+                    detailRow(icon: "clock", label: "Time", value: "\(Self.timeFmt.string(from: start)) – \(Self.timeFmt.string(from: end))")
+                    Divider().overlay(BrandTheme.divider).padding(.horizontal, 20)
+                }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(people) { person in
-                let isSelected = selectedIds.contains(person.id)
-                Button {
-                    onToggle(person.id)
-                } label: {
-                    HStack(spacing: 10) {
-                        Circle()
-                            .fill(isSelected ? BrandTheme.accent : BrandTheme.surfaceStrong)
-                            .frame(width: 10, height: 10)
-                        Text(person.name)
-                            .font(.subheadline)
-                            .foregroundStyle(BrandTheme.ink)
-                        Spacer(minLength: 0)
-                        if isSelected {
-                            Image(systemName: "checkmark")
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(BrandTheme.accent)
+                if let desc = event.description, !desc.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "text.alignleft")
+                                .font(.caption)
+                                .foregroundStyle(BrandTheme.inkSoft)
+                            Text("Notes")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(BrandTheme.inkSoft)
                         }
+                        Text(desc)
+                            .font(.system(size: 14))
+                            .foregroundStyle(BrandTheme.ink)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(BrandTheme.surfaceStrong)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(isSelected ? BrandTheme.accent : BrandTheme.outline, lineWidth: 1)
-                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 14)
                 }
-                .buttonStyle(.plain)
+            }
+            .background(BrandTheme.surfaceStrong)
+            .overlay(
+                VStack {
+                    Divider().overlay(BrandTheme.outline)
+                    Spacer()
+                    Divider().overlay(BrandTheme.outline)
+                }
+            )
+
+            VStack(spacing: 10) {
+                if let link = event.htmlLink, let url = URL(string: link) {
+                    Link(destination: url) {
+                        HStack {
+                            Image(systemName: "arrow.up.right.square")
+                            Text("Open in Google Calendar")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 13)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(BrandTheme.ink.opacity(0.06))
+                        )
+                        .foregroundStyle(BrandTheme.ink)
+                    }
+                }
+
+                Button {
+                    showDeleteAlert = true
+                } label: {
+                    HStack {
+                        Image(systemName: "trash")
+                        Text("Delete Event")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 13)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(BrandTheme.danger.opacity(0.08))
+                    )
+                    .foregroundStyle(BrandTheme.danger)
+                }
+            }
+            .padding(20)
+
+            if let error = vm.errorText {
+                InlineNotice(text: error, tone: BrandTheme.danger, systemImage: "exclamationmark.triangle.fill")
+                    .padding(.horizontal, 20)
             }
         }
     }
-}
 
-private struct FormField: View {
-    let label: String
-    @Binding var text: String
-    let placeholder: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(label)
-                .font(.caption.weight(.semibold))
+    private func detailRow(icon: String, label: String, value: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.caption)
                 .foregroundStyle(BrandTheme.inkSoft)
-            TextField(placeholder, text: $text)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(BrandTheme.surfaceStrong)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(BrandTheme.outline, lineWidth: 1)
-                )
+                .frame(width: 20)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(label)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(BrandTheme.inkSoft)
+                Text(value)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(BrandTheme.ink)
+            }
+            Spacer()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+    }
+
+    // MARK: - Edit Mode
+
+    private var editContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            TextField("Event title", text: $vm.draft.title)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(BrandTheme.ink)
+                .textFieldStyle(FitsinInputStyle())
+
+            Toggle("All Day", isOn: $vm.draft.isAllDay)
+                .tint(BrandTheme.ink)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(BrandTheme.ink)
+
+            if vm.draft.isAllDay {
+                DatePicker("Date", selection: $vm.draft.startDate, displayedComponents: .date)
+                    .datePickerStyle(.compact)
+                    .tint(BrandTheme.ink)
+                    .foregroundStyle(BrandTheme.ink)
+            } else {
+                DatePicker("Start", selection: $vm.draft.startDate)
+                    .datePickerStyle(.compact)
+                    .tint(BrandTheme.ink)
+                    .foregroundStyle(BrandTheme.ink)
+
+                DatePicker("End", selection: $vm.draft.endDate)
+                    .datePickerStyle(.compact)
+                    .tint(BrandTheme.ink)
+                    .foregroundStyle(BrandTheme.ink)
+            }
+
+            TextField("Location", text: $vm.draft.location)
+                .foregroundStyle(BrandTheme.ink)
+                .textFieldStyle(FitsinInputStyle())
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Notes")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(BrandTheme.inkSoft)
+                TextEditor(text: $vm.draft.description)
+                    .foregroundStyle(BrandTheme.ink)
+                    .scrollContentBackground(.hidden)
+                    .frame(minHeight: 100)
+                    .padding(10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.white)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(BrandTheme.outline, lineWidth: 1)
+                    )
+            }
+
+            if let error = vm.errorText {
+                InlineNotice(text: error, tone: BrandTheme.danger, systemImage: "exclamationmark.triangle.fill")
+            }
+        }
+        .padding(20)
     }
 }
