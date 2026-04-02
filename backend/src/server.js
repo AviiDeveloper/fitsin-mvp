@@ -12,7 +12,7 @@ import { currentMonthKey, getMonthGoal, setMonthGoal } from './services/monthGoa
 import { createManualEntry, deleteManualEntry, listManualEntries } from './services/manualEntries.js';
 import { getRotaEntries, addRotaEntry, removeRotaEntry, getSchedules, setSchedule, getScheduleForUser } from './services/rota.js';
 import { fetchDailySalesItems, fetchSellerSales } from './services/shopify.js';
-import { registerDevice, updatePreferences, removeDevice } from './services/pushDevices.js';
+import { registerDevice, updatePreferences, removeDevice, getAllDevices } from './services/pushDevices.js';
 import { sendPush, sendPushToPreference, sendPushToSeller, sendPushToDevice } from './services/push.js';
 import { getRotaEntries as getRotaEntriesForPush } from './services/rota.js';
 import { TTLCache } from './utils/cache.js';
@@ -437,6 +437,15 @@ app.put('/v1/rota/schedule', async (req, res) => {
 });
 
 // ── Devices (Push Registration) ───────────────────────
+
+app.get('/v1/devices', async (req, res) => {
+  try {
+    const devices = await getAllDevices();
+    return res.json({ devices, count: devices.length });
+  } catch (error) {
+    return res.status(400).json({ error: 'Failed to list devices', detail: error.message });
+  }
+});
 
 app.post('/v1/devices', async (req, res) => {
   try {
