@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -56,7 +56,7 @@
 		1999F02FFEAF0CD739D737BD /* DaySalesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaySalesViewModel.swift; sourceTree = "<group>"; };
 		1C6DA6039C885ADA5E58C34F /* TodayViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayViewModel.swift; sourceTree = "<group>"; };
 		20EDD679368504B378C91328 /* BrandTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandTheme.swift; sourceTree = "<group>"; };
-		284D1B91E4E53821B0E7A074 /* FitsinMVP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FitsinMVP.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		284D1B91E4E53821B0E7A074 /* FitsinMVP.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FitsinMVP.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2B1B7B509345388ACDACADA3 /* MonthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthView.swift; sourceTree = "<group>"; };
 		310192D580868CFBA32D1EA4 /* AccessCodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessCodeView.swift; sourceTree = "<group>"; };
 		390976B1D48E94CF82034690 /* FitsinMVPApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitsinMVPApp.swift; sourceTree = "<group>"; };
@@ -271,6 +271,7 @@
 			packageReferences = (
 				C6EE651A51897FD913463B48 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 			);
+			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -346,7 +347,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = FitsinMVP/Resources/FitsinMVP.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = G83T5S9M7Z;
 				INFOPLIST_FILE = FitsinMVP/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -365,7 +365,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = FitsinMVP/Resources/FitsinMVP.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = G83T5S9M7Z;
 				INFOPLIST_FILE = FitsinMVP/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

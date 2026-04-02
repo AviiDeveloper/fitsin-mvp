@@ -18,6 +18,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         let token = deviceToken.map { String(format: "%02x", $0) }.joined()
+        print("[push] Got device token: \(token)")
         _ = KeychainStore.saveDeviceToken(token)
 
         let name = KeychainStore.readName() ?? ""
@@ -38,7 +39,8 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        print("[push] Registration failed: \(error.localizedDescription)")
+        print("[push] FAILED to register: \(error.localizedDescription)")
+        print("[push] Error details: \(error)")
     }
 
     func userNotificationCenter(

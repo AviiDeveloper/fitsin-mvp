@@ -36,9 +36,11 @@ struct FitsinMVPApp: App {
     }
 
     private func requestPushPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            print("[push] Permission granted: \(granted), error: \(String(describing: error))")
             if granted {
                 DispatchQueue.main.async {
+                    print("[push] Registering for remote notifications...")
                     UIApplication.shared.registerForRemoteNotifications()
                 }
             }
