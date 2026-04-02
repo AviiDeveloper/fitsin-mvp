@@ -6,14 +6,7 @@ enum StaffDirectory {
     static var allNames: [String] {
         let stored = UserDefaults.standard.stringArray(forKey: "staff_names") ?? []
         let defaults = ["Archie", "Louis", "Brad", "Theo", "Tony", "Crawford"]
-        let names = stored.isEmpty ? defaults : stored
-
-        // Ensure Louis has a default PIN on first run
-        if pin(for: "Louis") == nil {
-            setPin("137958", for: "Louis")
-        }
-
-        return names
+        return stored.isEmpty ? defaults : stored
     }
 
     static func addName(_ name: String) {
