@@ -24,11 +24,11 @@ struct FitsinMVPApp: App {
                             CalendarService.shared.authManager = calendarAuth
                             Task { await calendarAuth.restorePreviousSignIn() }
                         }
-                } else if session.hasCode {
-                    UserNameView()
+                } else if session.userName != nil && !session.pinVerified {
+                    PinLockView()
                         .environmentObject(session)
                 } else {
-                    AccessCodeView()
+                    UserNameView()
                         .environmentObject(session)
                 }
             }

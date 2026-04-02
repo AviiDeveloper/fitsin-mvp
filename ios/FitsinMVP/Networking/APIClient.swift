@@ -21,18 +21,16 @@ final class APIClient {
         return url
     }
 
-    private func request(path: String, method: String = "GET", body: Data? = nil) throws -> URLRequest {
-        guard let code = KeychainStore.readCode(), !code.isEmpty else {
-            throw APIError.noCode
-        }
+    private static let appCode = "8927374"
 
+    private func request(path: String, method: String = "GET", body: Data? = nil) throws -> URLRequest {
         guard let url = URL(string: path, relativeTo: baseURL) else {
             throw APIError.invalidURL
         }
 
         var req = URLRequest(url: url)
         req.httpMethod = method
-        req.setValue(code, forHTTPHeaderField: "X-APP-CODE")
+        req.setValue(Self.appCode, forHTTPHeaderField: "X-APP-CODE")
         req.setValue("application/json", forHTTPHeaderField: "Accept")
         if let body {
             req.httpBody = body

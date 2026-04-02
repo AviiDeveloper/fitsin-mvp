@@ -1,63 +1,8 @@
 import SwiftUI
 
+// Deprecated — access code flow removed. Name picker + PIN is the entry point now.
 struct AccessCodeView: View {
-    @EnvironmentObject var session: AppSession
-    @State private var code = ""
-    @State private var animateIn = false
-
     var body: some View {
-        NavigationStack {
-            ZStack {
-                DashboardBackground()
-
-                VStack(spacing: 24) {
-                    Image("fitsin-logo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(height: 60)
-                        .foregroundStyle(BrandTheme.ink)
-
-                    VStack(alignment: .leading, spacing: 14) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Staff Dashboard")
-                                .font(.title2.bold())
-                                .foregroundStyle(BrandTheme.ink)
-                            Text("Enter the shared team code to continue")
-                                .font(.subheadline)
-                                .foregroundStyle(BrandTheme.inkSoft)
-                        }
-
-                        SecureField("Access code", text: $code)
-                            .textInputAutocapitalization(.never)
-                            .textFieldStyle(FitsinInputStyle())
-
-                        Button {
-                            session.save(code: code)
-                        } label: {
-                            Text("Continue")
-                                .font(.subheadline.weight(.semibold))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 13)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 14)
-                                        .fill(code.isEmpty ? BrandTheme.ink.opacity(0.3) : BrandTheme.ink)
-                                )
-                                .foregroundStyle(.white)
-                        }
-                        .disabled(code.isEmpty)
-                    }
-                    .vintageCard()
-                }
-                .opacity(animateIn ? 1 : 0)
-                .offset(y: animateIn ? 0 : 12)
-                .padding(20)
-            }
-            .task {
-                animateIn = false
-                withAnimation(.spring(duration: 0.5, bounce: 0.15)) {
-                    animateIn = true
-                }
-            }
-        }
+        EmptyView()
     }
 }

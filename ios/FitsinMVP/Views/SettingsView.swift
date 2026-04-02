@@ -249,6 +249,48 @@ struct SettingsView: View {
                             }
                         }
 
+                        if StaffDirectory.isAdmin(session.userName) {
+                            DashboardSection(title: "Staff Management", subtitle: "Manage team access (admin only)") {
+                                NavigationLink {
+                                    StaffManagementView()
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "person.3.fill")
+                                            .font(.title3.weight(.semibold))
+                                            .foregroundStyle(BrandTheme.ink)
+                                            .frame(width: 36, height: 36)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 10)
+                                                    .fill(BrandTheme.ink.opacity(0.06))
+                                            )
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("Staff & PINs")
+                                                .font(.subheadline.weight(.semibold))
+                                                .foregroundStyle(BrandTheme.ink)
+                                            Text("Reset codes, add or remove people")
+                                                .font(.caption)
+                                                .foregroundStyle(BrandTheme.inkSoft)
+                                        }
+                                        Spacer()
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption.weight(.bold))
+                                            .foregroundStyle(BrandTheme.inkSoft)
+                                    }
+                                    .padding(14)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 14)
+                                            .fill(BrandTheme.surfaceStrong)
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 14)
+                                            .stroke(BrandTheme.outline, lineWidth: 1)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .vintageCard()
+                            }
+                        }
+
                         DashboardSection(title: "Account", subtitle: "User and access control") {
                             VStack(spacing: 10) {
                                 Button {
@@ -312,8 +354,7 @@ struct SettingsView: View {
             Image("fitsin-logo")
                 .resizable()
                 .scaledToFit()
-                .frame(height: 44)
-                .foregroundStyle(BrandTheme.ink)
+                .frame(height: 132)
 
             VStack(spacing: 4) {
                 if let name = session.userName {
